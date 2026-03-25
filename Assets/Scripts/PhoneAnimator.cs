@@ -2,41 +2,64 @@ using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// Adds a subtle idle animation to the phone (gentle bob + tap scale feedback).
-/// Attach this to the Phone Frame RectTransform.
+/// Slides the phone up from below the screen on Start.
+/// Attach to the PhoneFrame RectTransform.
 /// </summary>
 public class PhoneAnimator : MonoBehaviour
 {
-    [Header("Idle Bob")]
-    public float bobHeight   = 6f;     // pixels up/down
-    public float bobSpeed    = 1.2f;   // cycles per second
+    [Header("Slide-In Animation")]
+    public float slideDuration   = 0.6f;
+    public float slideDelay      = 0.4f;
+    public float startOffsetBelow = 600f;
+    public AnimationCurve slideCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
     [Header("Button Tap Feedback")]
-    public float tapScaleAmount = 0.92f;
-    public float tapScaleDuration = 0.1f;
+    public float tapScaleAmount   = 0.93f;
+    public float tapScaleDuration = 0.12f;
 
     private RectTransform rect;
-    private Vector2 startPos;
 
-    void Awake()
+    void Start()
     {
         rect = GetComponent<RectTransform>();
-        startPos = rect.anchoredPosition;
+        // Wait one frame so PhoneUISetup finishes positioning first
+        StartCoroutine(SlideInAfterSetup());
     }
 
-    void Update()
+    private IEnumerator SlideInAfterSetup()
     {
-        // Gentle up/down bob
-        float offset = Mathf.Sin(Time.time * bobSpeed * Mathf.PI * 2f) * bobHeight;
-        rect.anchoredPosition = startPos + new Vector2(0f, offset);
+        // Wait one frame — lets PhoneUISetup.Start() finish setting final position
+        yield return null;
+
+        // Now capture the correct final position
+        Vector2 finalPos = rect.anchoredPosition;
+
+        // Move phone below screen
+        rect.anchoredPosition = finalPos + new Vector2(0f, -startOffsetBelow);
+
+        // Wait before sliding
+        yield return new WaitForSeconds(slideDelay);
+
+        // Slide up to final position
+        Vector2 startPos = rect.anchoredPosition;
+        float elapsed = 0f;
+
+        while (elapsed < slideDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t      = Mathf.Clamp01(elapsed / slideDuration);
+            float curved = slideCurve.Evaluate(t);
+            rect.anchoredPosition = Vector2.LerpUnclamped(startPos, finalPos, curved);
+            yield return null;
+        }
+
+        rect.anchoredPosition = finalPos;
     }
 
-    /// <summary>
-    /// Call this from a Button's onClick to get a scale-press effect.
-    /// </summary>
+    /// <summary>Call from a Button onClick for a press-scale effect.</summary>
     public void PlayTapFeedback()
     {
-        StopAllCoroutines();
+        StopCoroutine("TapScale");
         StartCoroutine(TapScale());
     }
 
@@ -44,26 +67,19 @@ public class PhoneAnimator : MonoBehaviour
     {
         float half = tapScaleDuration / 2f;
         float t = 0f;
-
-        // Shrink
         while (t < half)
         {
             t += Time.deltaTime;
-            float s = Mathf.Lerp(1f, tapScaleAmount, t / half);
-            rect.localScale = Vector3.one * s;
+            transform.localScale = Vector3.one * Mathf.Lerp(1f, tapScaleAmount, t / half);
             yield return null;
         }
-
         t = 0f;
-        // Grow back
         while (t < half)
         {
             t += Time.deltaTime;
-            float s = Mathf.Lerp(tapScaleAmount, 1f, t / half);
-            rect.localScale = Vector3.one * s;
+            transform.localScale = Vector3.one * Mathf.Lerp(tapScaleAmount, 1f, t / half);
             yield return null;
         }
-
-        rect.localScale = Vector3.one;
+        transform.localScale = Vector3.one;
     }
 }
