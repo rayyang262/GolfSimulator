@@ -12,6 +12,7 @@ namespace StarterAssets
 		public Vector2 look;
 		public bool jump;
 		public bool sprint;
+		public bool togglePhone;
 
 		[Header("Movement Settings")]
 		public bool analogMovement;
@@ -43,6 +44,11 @@ namespace StarterAssets
 		{
 			SprintInput(value.isPressed);
 		}
+
+		public void OnTogglePhone(InputValue value)
+		{
+			togglePhone = value.isPressed;
+		}
 #endif
 
 
@@ -66,9 +72,38 @@ namespace StarterAssets
 			sprint = newSprintState;
 		}
 		
+		private PhoneAnimator _phoneAnimator;
+
+		private void Update()
+		{
+			if (_phoneAnimator == null)
+				_phoneAnimator = FindObjectOfType<PhoneAnimator>();
+
+			if (_phoneAnimator != null && _phoneAnimator.IsPhoneUp)
+			{
+				// Phone is up: unlock cursor, stop camera look
+				if (Cursor.lockState != CursorLockMode.None)
+				{
+					Cursor.lockState = CursorLockMode.None;
+					Cursor.visible = true;
+				}
+				cursorInputForLook = false;
+				look = Vector2.zero; // prevent residual camera drift
+			}
+			else
+			{
+				// Phone is down: lock cursor, enable camera look
+				Cursor.lockState = CursorLockMode.Locked;
+				Cursor.visible = false;
+				cursorInputForLook = true;
+			}
+		}
+
 		private void OnApplicationFocus(bool hasFocus)
 		{
-			SetCursorState(cursorLocked);
+			// When regaining focus, only lock cursor if phone is not up
+			if (hasFocus && (_phoneAnimator == null || !_phoneAnimator.IsPhoneUp))
+				SetCursorState(cursorLocked);
 		}
 
 		private void SetCursorState(bool newState)
