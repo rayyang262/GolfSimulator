@@ -1,62 +1,106 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using System.Collections;
 
 /// <summary>
-/// Slides the phone up from below the screen on Start.
-/// Attach to the PhoneFrame RectTransform.
+/// Slides the phone up/down when the player presses I.
+/// Attach to the 3D phone model parented under the camera.
 /// </summary>
 public class PhoneAnimator : MonoBehaviour
 {
     [Header("Slide-In Animation")]
-    public float slideDuration   = 0.6f;
-    public float slideDelay      = 0.4f;
-    public float startOffsetBelow = 600f;
+    public float slideDuration    = 0.6f;
+    public float slideDelay       = 0.4f;
+    public float startOffsetBelow = 0.5f;
     public AnimationCurve slideCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
     [Header("Button Tap Feedback")]
     public float tapScaleAmount   = 0.93f;
     public float tapScaleDuration = 0.12f;
 
-    private RectTransform rect;
+    private Vector3 finalPos;
+    private bool isUp = false;
+    private bool isAnimating = false;
+    private Coroutine slideCoroutine;
+
+    /// <summary>True when the phone is up and the user can interact with it.</summary>
+    public bool IsPhoneUp => isUp;
 
     void Start()
     {
-        rect = GetComponent<RectTransform>();
-        // Wait one frame so PhoneUISetup finishes positioning first
         StartCoroutine(SlideInAfterSetup());
+    }
+
+    void Update()
+    {
+        if (Keyboard.current != null && Keyboard.current.iKey.wasPressedThisFrame && !isAnimating)
+        {
+            if (isUp)
+                SlideDown();
+            else
+                SlideUp();
+        }
+    }
+
+    public void SlideUp()
+    {
+        if (isAnimating || isUp) return;
+        if (slideCoroutine != null) StopCoroutine(slideCoroutine);
+        slideCoroutine = StartCoroutine(SlideTo(finalPos, true));
+    }
+
+    public void SlideDown()
+    {
+        if (isAnimating || !isUp) return;
+        if (slideCoroutine != null) StopCoroutine(slideCoroutine);
+        Vector3 hiddenPos = finalPos + new Vector3(0f, -startOffsetBelow, 0f);
+        slideCoroutine = StartCoroutine(SlideTo(hiddenPos, false));
+    }
+
+    private IEnumerator SlideTo(Vector3 targetPos, bool upAfter)
+    {
+        isAnimating = true;
+        Vector3 startPos = transform.localPosition;
+        float elapsed = 0f;
+        while (elapsed < slideDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / slideDuration);
+            float curved = slideCurve.Evaluate(t);
+            transform.localPosition = Vector3.LerpUnclamped(startPos, targetPos, curved);
+            yield return null;
+        }
+
+        transform.localPosition = targetPos;
+        isUp = upAfter;
+        isAnimating = false;
     }
 
     private IEnumerator SlideInAfterSetup()
     {
-        // Wait one frame — lets PhoneUISetup.Start() finish setting final position
         yield return null;
 
-        // Now capture the correct final position
-        Vector2 finalPos = rect.anchoredPosition;
+        finalPos = transform.localPosition;
+        transform.localPosition = finalPos + new Vector3(0f, -startOffsetBelow, 0f);
 
-        // Move phone below screen
-        rect.anchoredPosition = finalPos + new Vector2(0f, -startOffsetBelow);
-
-        // Wait before sliding
         yield return new WaitForSeconds(slideDelay);
 
-        // Slide up to final position
-        Vector2 startPos = rect.anchoredPosition;
+        Vector3 startPos = transform.localPosition;
         float elapsed = 0f;
 
         while (elapsed < slideDuration)
         {
             elapsed += Time.deltaTime;
-            float t      = Mathf.Clamp01(elapsed / slideDuration);
+            float t = Mathf.Clamp01(elapsed / slideDuration);
             float curved = slideCurve.Evaluate(t);
-            rect.anchoredPosition = Vector2.LerpUnclamped(startPos, finalPos, curved);
+            transform.localPosition = Vector3.LerpUnclamped(startPos, finalPos, curved);
             yield return null;
         }
 
-        rect.anchoredPosition = finalPos;
+        transform.localPosition = finalPos;
+        isUp = true;
     }
 
-    /// <summary>Call from a Button onClick for a press-scale effect.</summary>
     public void PlayTapFeedback()
     {
         StopCoroutine("TapScale");

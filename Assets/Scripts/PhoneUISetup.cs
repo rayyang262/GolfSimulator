@@ -17,11 +17,9 @@ public class PhoneUISetup : MonoBehaviour
     public RectTransform realCourtButton;
     public RectTransform titleText;
 
-    [Header("Phone Size & Position")]
+    [Header("Phone Size")]
     public float phoneWidth  = 200f;
     public float phoneHeight = 390f;
-    public float phonePosX   = -120f;
-    public float phonePosY   = 210f;
 
     void OnValidate()
     {
@@ -43,11 +41,7 @@ public class PhoneUISetup : MonoBehaviour
         // ── PhoneFrame ── anchored to bottom-right ──────────────────────
         if (phoneFrame != null)
         {
-            phoneFrame.anchorMin        = new Vector2(1, 0);
-            phoneFrame.anchorMax        = new Vector2(1, 0);
-            phoneFrame.pivot            = new Vector2(0.5f, 0.5f);
             phoneFrame.sizeDelta        = new Vector2(phoneWidth, phoneHeight);
-            phoneFrame.anchoredPosition = new Vector2(phonePosX, phonePosY);
             phoneFrame.localScale       = Vector3.one;
             SetColor(phoneFrame, new Color32(28, 28, 30, 255), rounded: true);
         }
