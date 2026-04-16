@@ -33,6 +33,10 @@ public class GolfSwingController : MonoBehaviour
     public AudioClip swingWhoosh;
     public AudioClip ballHit;
 
+    [Header("Phone Input (TouchOSC)")]
+    [Tooltip("Check this when using TouchOscSwingController. Disables mouse swing input.")]
+    public bool usePhoneInput = false;
+
     // ── private state ────────────────────────────────────────────────
     private GameObject  _ball;
     private Rigidbody   _ballRb;
@@ -57,6 +61,7 @@ public class GolfSwingController : MonoBehaviour
     void Update()
     {
         if (_isSwinging) return;   // mid-downswing: ignore new input
+        if (usePhoneInput)  return; // TouchOscSwingController drives input instead
 
         bool pressing = Mouse.current != null && Mouse.current.leftButton.isPressed;
 
@@ -90,6 +95,42 @@ public class GolfSwingController : MonoBehaviour
 
         if (clubPivot != null)
             clubPivot.localRotation = Quaternion.Euler(-_currentClubAngle, 0f, 0f);
+    }
+
+    // ── phone input API (called by TouchOscSwingController) ─────────────
+
+    /// <summary>
+    /// Drives the club backswing visual while the phone is in motion.
+    /// normalized: 0 = address position, 1 = full backswing angle.
+    /// </summary>
+    public void PhoneSetBackswingAngle(float normalized)
+    {
+        if (_isSwinging) return;
+        _currentClubAngle = normalized * maxBackswingAngle;
+        if (clubPivot != null)
+            clubPivot.localRotation = Quaternion.Euler(-_currentClubAngle, 0f, 0f);
+    }
+
+    /// <summary>
+    /// Triggers a downswing + hit with the given power (already calculated by TouchOscSwingController).
+    /// </summary>
+    public void PhoneTriggerHit(float power)
+    {
+        if (_isSwinging) return;
+        // Back-calculate holdTime so Downswing() derives the same power value
+        _isHolding = true;
+        _holdTime  = power / powerPerSecond;
+        StartCoroutine(Downswing());
+    }
+
+    /// <summary>
+    /// Called when the phone swing timed out without a valid hit — just returns club to rest.
+    /// </summary>
+    public void PhoneWhiff()
+    {
+        if (_isSwinging) return;
+        _isHolding = false;
+        StartCoroutine(ReturnClubToRest());
     }
 
     // ── downswing + hit ──────────────────────────────────────────────
