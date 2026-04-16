@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 
@@ -19,6 +21,12 @@ public class PhoneScreenController : MonoBehaviour
     public TextMeshProUGUI fgText;
     public GameObject settingsOverlay;
     public Button screenTapArea;
+
+    [Header("Display Library Overlay")]
+    [Tooltip("One of the 4 settings buttons that opens the Display Library")]
+    public Button displayLibraryButton;
+    [Tooltip("The Display Library panel (shown on top of SettingsOverlay). Tapping outside its rect closes it.")]
+    public GameObject displayLibraryOverlay;
 
     [Header("Render Texture Settings")]
     public int textureWidth = 512;
@@ -58,6 +66,13 @@ public class PhoneScreenController : MonoBehaviour
         if (settingsOverlay != null)
             settingsOverlay.SetActive(false);
 
+        // Hide display library overlay on start and wire its opener button
+        if (displayLibraryOverlay != null)
+            displayLibraryOverlay.SetActive(false);
+
+        if (displayLibraryButton != null)
+            displayLibraryButton.onClick.AddListener(OpenDisplayLibrary);
+
         // Initial text
         if (fgText != null)
             fgText.text = "FG%: 0/0";
@@ -86,7 +101,8 @@ public class PhoneScreenController : MonoBehaviour
         {
             Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
             Ray ray = mainCamera.ScreenPointToRay(mousePos);
-            if (phoneScreenRenderer.bounds.IntersectRay(ray))
+            if (phoneScreenRenderer.bounds.IntersectRay(ray)
+                && !IsPointerOverSelectable(mousePos))
             {
                 OnScreenTapped();
             }
@@ -95,9 +111,56 @@ public class PhoneScreenController : MonoBehaviour
 
     void OnScreenTapped()
     {
+        // If the library is open, a tap outside its panel closes it and
+        // consumes the tap so it doesn't also toggle SettingsOverlay.
+        if (displayLibraryOverlay != null && displayLibraryOverlay.activeSelf)
+        {
+            var panelRect = displayLibraryOverlay.transform as RectTransform;
+            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+            if (panelRect == null ||
+                !RectTransformUtility.RectangleContainsScreenPoint(panelRect, mousePos, mainCamera))
+            {
+                CloseDisplayLibrary();
+            }
+            return;
+        }
+
         if (settingsOverlay == null) return;
         settingsVisible = !settingsVisible;
         settingsOverlay.SetActive(settingsVisible);
+    }
+
+    void OpenDisplayLibrary()
+    {
+        if (displayLibraryOverlay != null)
+        {
+            displayLibraryOverlay.SetActive(true);
+            displayLibraryOverlay.transform.SetAsLastSibling();
+        }
+    }
+
+    // Returns true if the pointer is over a clickable UI element (Button, Toggle, etc.),
+    // excluding the full-screen ScreenTapArea which is itself a Button used as a tap-catcher.
+    bool IsPointerOverSelectable(Vector2 screenPos)
+    {
+        if (EventSystem.current == null) return false;
+        var pointerData = new PointerEventData(EventSystem.current) { position = screenPos };
+        var results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(pointerData, results);
+        foreach (var r in results)
+        {
+            var sel = r.gameObject.GetComponentInParent<Selectable>();
+            if (sel == null) continue;
+            if (screenTapArea != null && sel == screenTapArea) continue;
+            return true;
+        }
+        return false;
+    }
+
+    void CloseDisplayLibrary()
+    {
+        if (displayLibraryOverlay != null)
+            displayLibraryOverlay.SetActive(false);
     }
 
     void SetupCameraFeed()
