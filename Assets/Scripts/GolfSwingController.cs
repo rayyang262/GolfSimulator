@@ -1,0 +1,228 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+using System.Collections;
+
+/// <summary>
+/// Attach to PlayerCapsule.
+/// - Hold Left Mouse / hold screen → backswing (club rotates back)
+/// - Release              → downswing + hit ball if in range
+/// </summary>
+public class GolfSwingController : MonoBehaviour
+{
+    [Header("References")]
+    [Tooltip("The ClubPivot empty GameObject under MainCamera")]
+    public Transform clubPivot;
+
+    [Tooltip("Golf ball prefab (Assets/Saritasa/Models/Sport_Balls/Golf.prefab)")]
+    public GameObject golfBallPrefab;
+
+    [Tooltip("Where the ball spawns at address position (empty GameObject at tee)")]
+    public Transform ballSpawnPoint;
+
+    [Header("Swing Settings")]
+    public float maxPower         = 25f;   // max launch force
+    public float powerPerSecond   = 18f;   // how fast power builds while holding
+    public float loftAngle        = 15f;   // upward angle added to hit direction
+    public float hitRadius        = 3.5f;  // how close ball must be to register hit
+
+    [Header("Club Rotation")]
+    public float maxBackswingAngle = 80f;  // degrees the club rotates back
+    public float downswingSpeed    = 600f; // degrees/sec during downswing
+
+    [Header("Audio (optional)")]
+    public AudioClip swingWhoosh;
+    public AudioClip ballHit;
+
+    // ── private state ────────────────────────────────────────────────
+    private GameObject  _ball;
+    private Rigidbody   _ballRb;
+    private bool        _isHolding;
+    private bool        _isSwinging;
+    private float       _holdTime;
+    private float       _currentClubAngle;   // local X rotation of clubPivot
+    private AudioSource _audio;
+    private Camera      _cam;
+
+    // ── lifecycle ────────────────────────────────────────────────────
+
+    void Start()
+    {
+        _cam   = Camera.main;
+        _audio = GetComponent<AudioSource>();
+        if (_audio == null) _audio = gameObject.AddComponent<AudioSource>();
+
+        SpawnBall();
+    }
+
+    void Update()
+    {
+        if (_isSwinging) return;   // mid-downswing: ignore new input
+
+        bool pressing = Mouse.current != null && Mouse.current.leftButton.isPressed;
+
+        if (pressing && !_isHolding)
+            BeginBackswing();
+
+        if (_isHolding && pressing)
+            ContinueBackswing();
+
+        if (_isHolding && !pressing)
+            StartCoroutine(Downswing());
+    }
+
+    // ── backswing ────────────────────────────────────────────────────
+
+    void BeginBackswing()
+    {
+        _isHolding  = true;
+        _holdTime   = 0f;
+        PlaySound(swingWhoosh, 0.3f);
+    }
+
+    void ContinueBackswing()
+    {
+        _holdTime += Time.deltaTime;
+
+        // Rotate clubPivot backward (negative X = club goes up behind player)
+        float targetAngle = Mathf.Clamp(_holdTime * (maxBackswingAngle / (maxPower / powerPerSecond)),
+                                        0f, maxBackswingAngle);
+        _currentClubAngle = targetAngle;
+
+        if (clubPivot != null)
+            clubPivot.localRotation = Quaternion.Euler(-_currentClubAngle, 0f, 0f);
+    }
+
+    // ── downswing + hit ──────────────────────────────────────────────
+
+    IEnumerator Downswing()
+    {
+        _isHolding  = false;
+        _isSwinging = true;
+
+        float power = Mathf.Clamp(_holdTime * powerPerSecond, 2f, maxPower);
+
+        // Swing the club forward fast
+        float angle = _currentClubAngle;
+        while (angle > -10f)
+        {
+            angle -= downswingSpeed * Time.deltaTime;
+            if (clubPivot != null)
+                clubPivot.localRotation = Quaternion.Euler(angle, 0f, 0f);
+            yield return null;
+        }
+
+        // Impact moment — check if ball is close enough
+        TryHitBall(power);
+
+        // Return club to rest
+        yield return ReturnClubToRest();
+
+        _isSwinging = false;
+        _holdTime   = 0f;
+    }
+
+    void TryHitBall(float power)
+    {
+        if (_ball == null) { SpawnBall(); return; }
+
+        float dist = Vector3.Distance(_cam.transform.position, _ball.transform.position);
+        if (dist > hitRadius) return;  // whiff — ball too far away
+
+        // Direction = camera forward + loft
+        Vector3 dir = _cam.transform.forward;
+        dir = Quaternion.AngleAxis(-loftAngle, _cam.transform.right) * dir;
+        dir.Normalize();
+
+        // Unfreeze ball and apply force
+        _ballRb.isKinematic = false;
+        _ballRb.AddForce(dir * power, ForceMode.Impulse);
+        _ballRb.AddTorque(_cam.transform.right * power * 2f, ForceMode.Impulse);
+
+        PlaySound(ballHit, 1f);
+        Debug.Log($"[GolfSwing] Hit! Power={power:F1}  Dir={dir}");
+
+        // Monitor ball until it stops, then respawn
+        StartCoroutine(WaitForBallToStop());
+    }
+
+    IEnumerator WaitForBallToStop()
+    {
+        // Give ball time to launch before checking
+        yield return new WaitForSeconds(1.5f);
+
+        while (_ballRb != null && _ballRb.linearVelocity.magnitude > 0.3f)
+            yield return new WaitForSeconds(0.5f);
+
+        // Move spawn point to where ball landed for next shot
+        if (_ball != null && ballSpawnPoint != null)
+            ballSpawnPoint.position = _ball.transform.position + Vector3.up * 0.05f;
+
+        yield return new WaitForSeconds(1f);
+        SpawnBall();
+    }
+
+    IEnumerator ReturnClubToRest()
+    {
+        float elapsed = 0f;
+        float duration = 0.35f;
+        Quaternion start = clubPivot != null ? clubPivot.localRotation : Quaternion.identity;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            if (clubPivot != null)
+                clubPivot.localRotation = Quaternion.Slerp(start, Quaternion.identity, elapsed / duration);
+            yield return null;
+        }
+
+        if (clubPivot != null)
+            clubPivot.localRotation = Quaternion.identity;
+    }
+
+    // ── ball management ──────────────────────────────────────────────
+
+    void SpawnBall()
+    {
+        if (_ball != null) Destroy(_ball);
+
+        Vector3 pos = ballSpawnPoint != null
+            ? ballSpawnPoint.position
+            : transform.position + transform.forward * 1.5f;
+
+        _ball = Instantiate(golfBallPrefab, pos, Quaternion.identity);
+        _ball.name = "GolfBall_Active";
+        _ball.tag  = "GolfBall";
+
+        // Ensure Rigidbody exists
+        _ballRb = _ball.GetComponent<Rigidbody>();
+        if (_ballRb == null) _ballRb = _ball.AddComponent<Rigidbody>();
+
+        _ballRb.mass         = 0.046f;  // real golf ball: 46g
+        _ballRb.linearDamping        = 0.05f;
+        _ballRb.angularDamping   = 0.1f;
+        _ballRb.isKinematic  = true;    // frozen until hit
+        _ballRb.useGravity   = true;
+
+        // Ensure MeshCollider is convex for physics
+        var mc = _ball.GetComponent<MeshCollider>();
+        if (mc != null) mc.convex = true;
+
+        Debug.Log("[GolfSwing] Ball spawned at " + pos);
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────
+
+    void PlaySound(AudioClip clip, float volume)
+    {
+        if (clip != null && _audio != null)
+            _audio.PlayOneShot(clip, volume);
+    }
+
+    // Shows swing power gizmo in Scene view
+    void OnDrawGizmosSelected()
+    {
+        if (_cam == null) return;
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(_cam.transform.position, hitRadius);
+    }
+}
