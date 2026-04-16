@@ -2231,6 +2231,8 @@ MonoBehaviour:
   fgText: {fileID: 1055915289}
   settingsOverlay: {fileID: 87161251}
   screenTapArea: {fileID: 1435949665}
+  displayLibraryButton: {fileID: 0}
+  displayLibraryOverlay: {fileID: 0}
   textureWidth: 512
   textureHeight: 1024
 --- !u!1 &1701688860

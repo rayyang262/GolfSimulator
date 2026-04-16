@@ -1,4 +1,6 @@
 ﻿<Solution>
+  <Project Path="extOSC.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="extOSC.Editor.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
 </Solution>
