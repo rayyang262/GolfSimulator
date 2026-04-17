@@ -56,6 +56,7 @@
     <Compile Include="Assets/StarterAssets/Mobile/Scripts/VirtualInputs/UIVirtualJoystick.cs" />
     <Compile Include="Assets/Scripts/PhoneRenderTextureSetup.cs" />
     <Compile Include="Assets/extOSC/Examples/06) Mapping/Scripts/MappingExample.cs" />
+    <Compile Include="Assets/Scripts/GolfBallInteraction.cs" />
     <Compile Include="Assets/extOSC/Examples/01) Getting Started/Scripts/SimpleMessageReceiver.cs" />
     <Compile Include="Assets/extOSC/Examples/07) Scripting/Scripts/ScriptingExample.cs" />
     <Compile Include="Assets/Scripts/StatDisplayManager.cs" />
@@ -1299,16 +1300,16 @@
       <HintPath>Library/ScriptAssemblies/Unity.AI.Navigation.Editor.ConversionSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary">
-      <HintPath>Library/ScriptAssemblies/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Runtime">
       <HintPath>Library/ScriptAssemblies/Unity.RenderPipelines.Core.Runtime.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.VisualScripting.Flow">
       <HintPath>Library/ScriptAssemblies/Unity.VisualScripting.Flow.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary">
+      <HintPath>Library/ScriptAssemblies/Unity.RenderPipelines.ShaderGraph.ShaderGraphLibrary.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.TextMeshPro.Editor">

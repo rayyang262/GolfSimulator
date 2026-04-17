@@ -20,9 +20,11 @@ public class GolfSwingController : MonoBehaviour
     public Transform ballSpawnPoint;
 
     [Header("Swing Settings")]
-    public float maxPower         = 25f;   // max launch force
+    [Tooltip("Max impulse force. At mass=0.046 kg: 5 N → ~108 m/s launch → ~350m carry on this course.")]
+    public float maxPower         = 5f;    // max launch force  (was 25 — reduced for 1:1 scale course)
     public float powerPerSecond   = 18f;   // how fast power builds while holding
-    public float loftAngle        = 15f;   // upward angle added to hit direction
+    [Tooltip("Upward angle of ball launch. 20° gives a good arc on a real-scale course.")]
+    public float loftAngle        = 20f;   // upward angle added to hit direction
     public float hitRadius        = 3.5f;  // how close ball must be to register hit
 
     [Header("Club Rotation")]
@@ -109,6 +111,18 @@ public class GolfSwingController : MonoBehaviour
         _currentClubAngle = normalized * maxBackswingAngle;
         if (clubPivot != null)
             clubPivot.localRotation = Quaternion.Euler(-_currentClubAngle, 0f, 0f);
+    }
+
+    /// <summary>
+    /// Continuously mirrors the phone's physical orientation onto the club pivot.
+    /// xEuler = pitch-derived backswing angle, zEuler = roll-derived face angle.
+    /// Called every frame by TouchOscSwingController while orientation tracking is active.
+    /// </summary>
+    public void PhoneSetClubOrientation(float xEuler, float zEuler)
+    {
+        if (_isSwinging) return;
+        if (clubPivot != null)
+            clubPivot.localRotation = Quaternion.Euler(xEuler, 0f, zEuler);
     }
 
     /// <summary>
@@ -230,19 +244,39 @@ public class GolfSwingController : MonoBehaviour
             ? ballSpawnPoint.position
             : transform.position + transform.forward * 1.5f;
 
+        // Snap spawn position to actual terrain surface so ball sits on the ground
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain != null)
+        {
+            float terrainY = terrain.SampleHeight(pos) + terrain.transform.position.y;
+            pos.y = terrainY + 0.035f;  // golf ball radius ≈ 3.5 cm
+        }
+
         _ball = Instantiate(golfBallPrefab, pos, Quaternion.identity);
         _ball.name = "GolfBall_Active";
-        _ball.tag  = "GolfBall";
+        try { _ball.tag = "GolfBall"; } catch { /* tag not yet added in Project Settings */ }
 
         // Ensure Rigidbody exists
         _ballRb = _ball.GetComponent<Rigidbody>();
         if (_ballRb == null) _ballRb = _ball.AddComponent<Rigidbody>();
 
-        _ballRb.mass         = 0.046f;  // real golf ball: 46g
-        _ballRb.linearDamping        = 0.05f;
-        _ballRb.angularDamping   = 0.1f;
-        _ballRb.isKinematic  = true;    // frozen until hit
-        _ballRb.useGravity   = true;
+        _ballRb.mass          = 0.046f; // real golf ball: 46g  (with maxPower=5 → launch ~108 m/s)
+        _ballRb.linearDamping = 0.15f;  // air drag — increase to shorten carry distance
+        _ballRb.angularDamping = 0.2f;
+        _ballRb.isKinematic   = true;   // frozen until hit
+        _ballRb.useGravity    = true;
+
+        // Bounce + friction material (so ball rolls and bounces realistically on the grass)
+        var physMat = new PhysicsMaterial("GolfBall")
+        {
+            bounciness       = 0.45f,
+            dynamicFriction  = 0.4f,
+            staticFriction   = 0.5f,
+            bounceCombine    = PhysicsMaterialCombine.Average,
+            frictionCombine  = PhysicsMaterialCombine.Average
+        };
+        foreach (var col in _ball.GetComponents<Collider>())
+            col.material = physMat;
 
         // Ensure MeshCollider is convex for physics
         var mc = _ball.GetComponent<MeshCollider>();
