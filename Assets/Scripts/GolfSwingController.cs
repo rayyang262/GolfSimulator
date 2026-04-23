@@ -20,9 +20,11 @@ public class GolfSwingController : MonoBehaviour
     public Transform ballSpawnPoint;
 
     [Header("Swing Settings")]
-    public float maxPower         = 25f;   // max launch force
+    [Tooltip("Max impulse force. At mass=0.046 kg: 5 N → ~108 m/s launch → ~350m carry on this course.")]
+    public float maxPower         = 5f;    // max launch force  (was 25 — reduced for 1:1 scale course)
     public float powerPerSecond   = 18f;   // how fast power builds while holding
-    public float loftAngle        = 15f;   // upward angle added to hit direction
+    [Tooltip("Upward angle of ball launch. 20° gives a good arc on a real-scale course.")]
+    public float loftAngle        = 20f;   // upward angle added to hit direction
     public float hitRadius        = 3.5f;  // how close ball must be to register hit
 
     [Header("Club Rotation")]
@@ -35,17 +37,24 @@ public class GolfSwingController : MonoBehaviour
 
     [Header("Phone Input (TouchOSC)")]
     [Tooltip("Check this when using TouchOscSwingController. Disables mouse swing input.")]
-    public bool usePhoneInput = false;
+    public bool usePhoneInput = true;
+
+    [Header("Shot Control")]
+    [Tooltip("Set true by GolfBallInteraction after player presses B. Ball only launches when true.")]
+    public bool readyToHit = false;
+    [Tooltip("Direction ball travels. Set by GolfBallInteraction from arrow-key aim.")]
+    public Vector3 aimDirection = Vector3.zero;
 
     // ── private state ────────────────────────────────────────────────
-    private GameObject  _ball;
-    private Rigidbody   _ballRb;
-    private bool        _isHolding;
-    private bool        _isSwinging;
-    private float       _holdTime;
-    private float       _currentClubAngle;   // local X rotation of clubPivot
-    private AudioSource _audio;
-    private Camera      _cam;
+    private GameObject   _ball;
+    private Rigidbody    _ballRb;
+    private TrailRenderer _ballTrail;
+    private bool         _isHolding;
+    private bool         _isSwinging;
+    private float        _holdTime;
+    private float        _currentClubAngle;   // local X rotation of clubPivot
+    private AudioSource  _audio;
+    private Camera       _cam;
 
     // ── lifecycle ────────────────────────────────────────────────────
 
@@ -61,18 +70,16 @@ public class GolfSwingController : MonoBehaviour
     void Update()
     {
         if (_isSwinging) return;   // mid-downswing: ignore new input
-        if (usePhoneInput)  return; // TouchOscSwingController drives input instead
 
-        bool pressing = Mouse.current != null && Mouse.current.leftButton.isPressed;
-
-        if (pressing && !_isHolding)
-            BeginBackswing();
-
-        if (_isHolding && pressing)
-            ContinueBackswing();
-
-        if (_isHolding && !pressing)
+        // ── Spacebar: swing trigger only — no jumping, no mouse ──────────────
+        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+        {
+            _isHolding = true;
+            _holdTime  = maxPower / powerPerSecond * 0.75f;  // 75 % power on spacebar
             StartCoroutine(Downswing());
+        }
+
+        // TouchOSC phone drives all other swing input via PhoneTriggerHit()
     }
 
     // ── backswing ────────────────────────────────────────────────────
@@ -112,6 +119,20 @@ public class GolfSwingController : MonoBehaviour
     }
 
     /// <summary>
+    /// Continuously mirrors the phone's physical orientation onto the club pivot.
+    /// xEuler = pitch-derived backswing angle, zEuler = roll-derived face angle.
+    /// Called every frame by TouchOscSwingController while orientation tracking is active.
+    /// </summary>
+    public void PhoneSetClubOrientation(float xEuler, float zEuler)
+    {
+        if (_isSwinging) return;
+        // Keep _currentClubAngle in sync so Downswing() knows where the backswing started
+        _currentClubAngle = Mathf.Abs(xEuler);
+        if (clubPivot != null)
+            clubPivot.localRotation = Quaternion.Euler(xEuler, 0f, zEuler);
+    }
+
+    /// <summary>
     /// Triggers a downswing + hit with the given power (already calculated by TouchOscSwingController).
     /// </summary>
     public void PhoneTriggerHit(float power)
@@ -140,24 +161,71 @@ public class GolfSwingController : MonoBehaviour
         _isHolding  = false;
         _isSwinging = true;
 
-        float power = Mathf.Clamp(_holdTime * powerPerSecond, 2f, maxPower);
+        float power           = Mathf.Clamp(_holdTime * powerPerSecond, 2f, maxPower);
+        float normalizedPower = Mathf.InverseLerp(2f, maxPower, power);
 
-        // Swing the club forward fast
-        float angle = _currentClubAngle;
-        while (angle > -10f)
+        // ── Backswing start rotation ──────────────────────────────────
+        // Use whatever the phone is holding the club at; guarantee a minimum arc
+        Quaternion backswingRot = clubPivot != null
+            ? clubPivot.localRotation
+            : Quaternion.Euler(-30f, 0f, 0f);
+
+        float arcAngle = Quaternion.Angle(backswingRot, Quaternion.identity);
+        if (arcAngle < 20f)
         {
-            angle -= downswingSpeed * Time.deltaTime;
-            if (clubPivot != null)
-                clubPivot.localRotation = Quaternion.Euler(angle, 0f, 0f);
+            // Club too close to rest — snap to a minimum backswing so there is visible motion
+            backswingRot = Quaternion.Euler(-Mathf.Max(_currentClubAngle, 30f), 0f, 0f);
+            if (clubPivot != null) clubPivot.localRotation = backswingRot;
+            yield return null;  // one frame at top of backswing
+        }
+
+        // ── Keyframe rotations ────────────────────────────────────────
+        Quaternion impactRot     = Quaternion.identity;             // address = impact
+        Quaternion followThruRot = Quaternion.Euler(38f, 0f, 0f);  // club follows through
+
+        // Hard swing = faster animation (0.55s slow → 0.18s hard)
+        float totalDuration  = Mathf.Lerp(0.55f, 0.18f, normalizedPower);
+        float impactFraction = 0.65f;  // impact happens 65 % through the swing
+
+        PlaySound(swingWhoosh, 0.4f + normalizedPower * 0.6f);
+
+        float elapsed = 0f;
+        bool  hasHit  = false;
+
+        while (elapsed < totalDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / totalDuration);
+
+            Quaternion rot;
+            if (t < impactFraction)
+            {
+                // Backswing → Impact  (quadratic ease-in = accelerates into the ball)
+                float tPhase = t / impactFraction;
+                rot = Quaternion.Slerp(backswingRot, impactRot, tPhase * tPhase);
+            }
+            else
+            {
+                // Impact → Follow-through (linear decelerate)
+                float tPhase = (t - impactFraction) / (1f - impactFraction);
+                rot = Quaternion.Slerp(impactRot, followThruRot, tPhase);
+            }
+
+            if (clubPivot != null) clubPivot.localRotation = rot;
+
+            // Hit the ball at the impact frame
+            if (!hasHit && t >= impactFraction)
+            {
+                hasHit = true;
+                TryHitBall(power);
+            }
+
             yield return null;
         }
 
-        // Impact moment — check if ball is close enough
-        TryHitBall(power);
+        if (!hasHit) TryHitBall(power);   // safety net — always hit
 
-        // Return club to rest
         yield return ReturnClubToRest();
-
         _isSwinging = false;
         _holdTime   = 0f;
     }
@@ -166,23 +234,46 @@ public class GolfSwingController : MonoBehaviour
     {
         if (_ball == null) { SpawnBall(); return; }
 
-        float dist = Vector3.Distance(_cam.transform.position, _ball.transform.position);
-        if (dist > hitRadius) return;  // whiff — ball too far away
+        // Only launch if player is in position (pressed B and stood beside ball)
+        if (!readyToHit)
+        {
+            Debug.Log("[GolfSwing] Swing detected but player is not in position — press B first.");
+            return;
+        }
 
-        // Direction = camera forward + loft
-        Vector3 dir = _cam.transform.forward;
-        dir = Quaternion.AngleAxis(-loftAngle, _cam.transform.right) * dir;
+        // Direction: use arrow-key aim from GolfBallInteraction; fall back to camera forward
+        Vector3 dir;
+        if (aimDirection.sqrMagnitude > 0.01f)
+            dir = aimDirection.normalized;
+        else
+        {
+            dir   = _cam.transform.forward;
+            dir.y = 0f;
+            if (dir == Vector3.zero) dir = transform.forward;
+            dir.Normalize();
+        }
+
+        // Apply loft (upward angle)
+        Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
+        dir = Quaternion.AngleAxis(-loftAngle, right) * dir;
         dir.Normalize();
 
-        // Unfreeze ball and apply force
-        _ballRb.isKinematic = false;
-        _ballRb.AddForce(dir * power, ForceMode.Impulse);
-        _ballRb.AddTorque(_cam.transform.right * power * 2f, ForceMode.Impulse);
+        const float powerScale = 0.25f;   // 25 % of original = 75 % reduction
+        _ballRb.AddForce(dir * power * powerScale, ForceMode.Impulse);
+        _ballRb.AddTorque(right * power * 2f * powerScale, ForceMode.Impulse);
+
+        // Enable green flight trail
+        if (_ballTrail != null) _ballTrail.emitting = true;
+
+        // Record this stroke with the game manager
+        GolfGameManager.Instance?.RecordStroke();
+
+        readyToHit   = false;   // can't hit again until next B press
+        aimDirection = Vector3.zero;
 
         PlaySound(ballHit, 1f);
         Debug.Log($"[GolfSwing] Hit! Power={power:F1}  Dir={dir}");
 
-        // Monitor ball until it stops, then respawn
         StartCoroutine(WaitForBallToStop());
     }
 
@@ -194,12 +285,38 @@ public class GolfSwingController : MonoBehaviour
         while (_ballRb != null && _ballRb.linearVelocity.magnitude > 0.3f)
             yield return new WaitForSeconds(0.5f);
 
+        // Stop trail emission once ball is at rest
+        if (_ballTrail != null) _ballTrail.emitting = false;
+
         // Move spawn point to where ball landed for next shot
         if (_ball != null && ballSpawnPoint != null)
             ballSpawnPoint.position = _ball.transform.position + Vector3.up * 0.05f;
 
         yield return new WaitForSeconds(1f);
         SpawnBall();
+    }
+
+    /// <summary>
+    /// Teleports the ball to a penalty position (e.g. water hazard drop zone).
+    /// Clears velocity and trail so the ball sits still at the new spot.
+    /// </summary>
+    public void PenaltyRespawn(Vector3 worldPos)
+    {
+        if (_ball == null) { SpawnBall(); return; }
+
+        // Snap to terrain surface
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain != null)
+            worldPos.y = terrain.SampleHeight(worldPos) + terrain.transform.position.y + 0.08f;
+
+        _ballRb.linearVelocity  = Vector3.zero;
+        _ballRb.angularVelocity = Vector3.zero;
+        _ball.transform.position = worldPos;
+
+        if (_ballTrail != null) { _ballTrail.emitting = false; _ballTrail.Clear(); }
+
+        readyToHit = false;
+        Debug.Log($"[GolfSwing] Penalty respawn → {worldPos}");
     }
 
     IEnumerator ReturnClubToRest()
@@ -230,23 +347,81 @@ public class GolfSwingController : MonoBehaviour
             ? ballSpawnPoint.position
             : transform.position + transform.forward * 1.5f;
 
-        _ball = Instantiate(golfBallPrefab, pos, Quaternion.identity);
+        // Snap spawn position to actual terrain surface so ball sits on the ground
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain != null)
+        {
+            float terrainY = terrain.SampleHeight(pos) + terrain.transform.position.y;
+            pos.y = terrainY + 0.08f;  // spawn a little above surface to avoid clipping through
+        }
+
+        // Spawn the ball — use the assigned prefab, or fall back to a plain sphere
+        if (golfBallPrefab != null)
+        {
+            _ball = Instantiate(golfBallPrefab, pos, Quaternion.identity);
+        }
+        else
+        {
+            // No prefab assigned — create a white sphere so the game still works
+            _ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            _ball.transform.position   = pos;
+            _ball.transform.localScale = Vector3.one * 0.043f;  // golf ball ≈ 4.3 cm
+            Debug.LogWarning("[GolfSwing] golfBallPrefab is not assigned — using a plain sphere. " +
+                             "Drag the golf ball prefab into GolfSwingController to use the real model.");
+        }
         _ball.name = "GolfBall_Active";
-        _ball.tag  = "GolfBall";
+        try { _ball.tag = "GolfBall"; } catch { /* tag not yet defined in Project Settings */ }
 
         // Ensure Rigidbody exists
         _ballRb = _ball.GetComponent<Rigidbody>();
         if (_ballRb == null) _ballRb = _ball.AddComponent<Rigidbody>();
 
-        _ballRb.mass         = 0.046f;  // real golf ball: 46g
-        _ballRb.linearDamping        = 0.05f;
-        _ballRb.angularDamping   = 0.1f;
-        _ballRb.isKinematic  = true;    // frozen until hit
-        _ballRb.useGravity   = true;
+        _ballRb.mass                        = 0.046f;   // real golf ball: 46g
+        _ballRb.linearDamping               = 0.15f;   // air drag
+        _ballRb.angularDamping              = 0.2f;
+        _ballRb.isKinematic                 = false;   // gravity on from spawn
+        _ballRb.useGravity                  = true;
+        _ballRb.collisionDetectionMode      = CollisionDetectionMode.ContinuousDynamic; // no tunneling
+        readyToHit                          = false;   // player must press B before swinging
 
-        // Ensure MeshCollider is convex for physics
-        var mc = _ball.GetComponent<MeshCollider>();
-        if (mc != null) mc.convex = true;
+        // ── Guarantee a working collider ────────────────────────────────────
+        // Non-convex MeshColliders cannot interact with Rigidbodies and cause
+        // the ball to fall through terrain. Replace / supplement with SphereCollider.
+        foreach (var col in _ball.GetComponents<Collider>())
+        {
+            var mc = col as MeshCollider;
+            if (mc != null)
+                mc.enabled = false;   // disable mesh collider — SphereCollider takes over
+        }
+
+        var sc = _ball.GetComponent<SphereCollider>();
+        if (sc == null) sc = _ball.AddComponent<SphereCollider>();
+        sc.radius  = 0.5f;   // local-space radius (scales with transform.localScale)
+        sc.enabled = true;
+
+        // Bounce + friction material
+        var physMat = new PhysicsMaterial("GolfBall")
+        {
+            bounciness      = 0.45f,
+            dynamicFriction = 0.4f,
+            staticFriction  = 0.5f,
+            bounceCombine   = PhysicsMaterialCombine.Average,
+            frictionCombine = PhysicsMaterialCombine.Average
+        };
+        sc.material = physMat;
+
+        // ── Green flight trail ────────────────────────────────────────────────
+        _ballTrail                  = _ball.AddComponent<TrailRenderer>();
+        _ballTrail.time             = 5f;          // trail lingers 5 s before fading
+        _ballTrail.startWidth       = 0.12f;
+        _ballTrail.endWidth         = 0f;
+        _ballTrail.minVertexDistance = 0.1f;
+        _ballTrail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        var trailMat                = new Material(Shader.Find("Sprites/Default"));
+        _ballTrail.material         = trailMat;
+        _ballTrail.startColor       = new Color(0.15f, 1f, 0.15f, 1f);   // bright green
+        _ballTrail.endColor         = new Color(0.15f, 1f, 0.15f, 0f);   // fade out
+        _ballTrail.emitting         = false;   // only emit during flight
 
         Debug.Log("[GolfSwing] Ball spawned at " + pos);
     }
