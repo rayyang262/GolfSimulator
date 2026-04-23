@@ -1392,6 +1392,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6745352159171455125, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 95
+      objectReference: {fileID: 0}
     - target: {fileID: 7850363962652624120, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
       propertyPath: m_Name
       value: Fiveth Hole
@@ -1628,6 +1632,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &483726869
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 483726870}
+  m_Layer: 0
+  m_Name: 'Area '
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &483726870
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 483726869}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 320, y: 105, z: 246}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &490781205 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 73e7feea75218f842975c1e4a7b81bb6, type: 3}
@@ -1721,6 +1756,26 @@ PrefabInstance:
     - target: {fileID: 453084650579209848, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: GroundLayers.m_Bits
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2862278905431641494, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: PivotOffset.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2862278905431641495, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: Damping.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2862278905431641495, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: Damping.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2862278905431641495, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: CameraSide
+      value: 0.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2862278905431641495, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      propertyPath: ShoulderOffset.x
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2862278905927072854, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       propertyPath: Priority.Enabled
@@ -3848,6 +3903,8 @@ MonoBehaviour:
   swingWhoosh: {fileID: 0}
   ballHit: {fileID: 0}
   usePhoneInput: 0
+  readyToHit: 0
+  aimDirection: {x: 0, y: 0, z: 0}
 --- !u!114 &2139247685
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3893,10 +3950,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GolfBallInteraction
   interactionRadius: 4
-  swingStandDistance: 1.8
+  stanceWidth: 1.1
+  aimRotateSpeed: 55
+  mouseSensitivity: 0.25
   ringMaterial: {fileID: 0}
   ringThickness: 0.18
-  promptMessage: Press  B  to get into position to swing
+  aimLineLength: 10
+  approachMessage: Press  B  to get into position to swing
+  stanceMessage: "\u2190 \u2192 Aim   |   \u2191 \u2193 Loft   |   Swing your phone!"
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -3907,3 +3968,4 @@ SceneRoots:
   - {fileID: 1295561947}
   - {fileID: 612570172}
   - {fileID: 436398454}
+  - {fileID: 483726870}
