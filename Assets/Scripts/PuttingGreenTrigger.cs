@@ -38,7 +38,7 @@ public class PuttingGreenTrigger : MonoBehaviour
 
     void Start()
     {
-        _swing = FindFirstObjectOfType<GolfSwingController>();
+        _swing = FindObjectOfType<GolfSwingController>();
         if (_swing == null)
             Debug.LogWarning("[PuttingGreenTrigger] GolfSwingController not found in scene.");
     }
@@ -93,17 +93,7 @@ public class PuttingGreenTrigger : MonoBehaviour
     void SetPuttingCamPriority(int priority)
     {
         if (puttingVCam == null) return;
-
-        try
-        {
-            var vcam = puttingVCam.GetComponent<Cinemachine.CinemachineVirtualCamera>();
-            if (vcam != null)
-                vcam.Priority = priority;
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogWarning($"[PuttingGreenTrigger] Cinemachine camera priority not set: {ex.Message}");
-        }
+        puttingVCam.SetActive(priority > 0);
     }
 
     // ── gizmos ────────────────────────────────────────────────────────
