@@ -52,12 +52,14 @@
     <Compile Include="Assets\StarterAssets\Mobile\Scripts\VirtualInputs\UIVirtualTouchZone.cs" />
     <Compile Include="Assets\Scripts\CourtManager.cs" />
     <Compile Include="Assets\Scripts\LockScale.cs" />
+    <Compile Include="Assets\Scripts\TouchOscSwingController.cs" />
     <Compile Include="Assets\StarterAssets\Mobile\Scripts\VirtualInputs\UIVirtualJoystick.cs" />
     <Compile Include="Assets\Scripts\PhoneRenderTextureSetup.cs" />
     <Compile Include="Assets\Scripts\StatDisplayManager.cs" />
     <Compile Include="Assets\Scripts\WaterFlow.cs" />
     <Compile Include="Assets\StarterAssets\Mobile\Scripts\Utilities\MobileDisableAutoSwitchControls.cs" />
     <Compile Include="Assets\Scripts\gradient.cs" />
+    <Compile Include="Assets\Scripts\DisplayLibraryModeToggle.cs" />
     <Compile Include="Assets\StarterAssets\FirstPersonController\Scripts\FirstPersonController.cs" />
     <Compile Include="Assets\Scripts\PhoneUISetup.cs" />
     <Compile Include="Assets\Scripts\PhoneMenuController.cs" />
@@ -69,6 +71,7 @@
     <Compile Include="Assets\Scripts\PhoneScreenController.cs" />
     <Compile Include="Assets\Scripts\StatCardToggle.cs" />
     <Compile Include="Assets\StarterAssets\Mobile\Scripts\CanvasInputs\UICanvasControllerInput.cs" />
+    <Compile Include="Assets\Scripts\OscReceiver.cs" />
     <Compile Include="Assets\Scripts\PhoneAnimator.cs" />
     <Compile Include="Assets\StarterAssets\InputSystem\StarterAssetsInputs.cs" />
   </ItemGroup>

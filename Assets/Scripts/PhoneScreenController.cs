@@ -115,8 +115,13 @@ public class PhoneScreenController : MonoBehaviour
         // consumes the tap so it doesn't also toggle SettingsOverlay.
         if (displayLibraryOverlay != null && displayLibraryOverlay.activeSelf)
         {
-            var panelRect = displayLibraryOverlay.transform as RectTransform;
             Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+
+            // If the pointer is over a button or interactive element, let the click through.
+            if (IsPointerOverSelectable(mousePos))
+                return;
+
+            var panelRect = displayLibraryOverlay.transform as RectTransform;
             if (panelRect == null ||
                 !RectTransformUtility.RectangleContainsScreenPoint(panelRect, mousePos, mainCamera))
             {
