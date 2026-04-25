@@ -1000,7 +1000,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 494691061729075502, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 505305072}
   m_SourcePrefab: {fileID: 100100000, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
 --- !u!1 &363024607
 GameObject:
@@ -1178,6 +1181,52 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 371191646}
   m_CullTransparentMesh: 1
+--- !u!1 &430095891
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 430095893}
+  - component: {fileID: 430095892}
+  m_Layer: 0
+  m_Name: Hole
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &430095892
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 430095891}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 052a271b8c3b041d2bdf773808354bef, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GolfHole
+  holeRadius: 0.108
+  maxEntrySpeed: 4
+--- !u!4 &430095893
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 430095891}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 662.66, y: 100.7, z: 215.83}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &436398453
 GameObject:
   m_ObjectHideFlags: 0
@@ -1615,8 +1664,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 483726870}
+  - component: {fileID: 483726871}
   m_Layer: 0
-  m_Name: 'Area '
+  m_Name: PuttingZone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1631,17 +1681,51 @@ Transform:
   m_GameObject: {fileID: 483726869}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 320, y: 105, z: 246}
+  m_LocalPosition: {x: 633, y: 105, z: 216}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &483726871
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 483726869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 721b55517b0cb49448636fdebee69757, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PuttingGreenTrigger
+  zoneSize: {x: 20, y: 4, z: 20}
+  putterMaxPower: 0.8
+  putterLoftAngle: 3
+  puttingVCam: {fileID: 0}
 --- !u!1 &490781205 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 73e7feea75218f842975c1e4a7b81bb6, type: 3}
   m_PrefabInstance: {fileID: 1782851222}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &505305067 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 494691061729075502, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
+  m_PrefabInstance: {fileID: 340585717}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &505305072
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 505305067}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd6bc25b21cc24dcc985e86e9d39f6b3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WaterHazard
+  penaltyPosition: {x: 320, y: 105, z: 246}
 --- !u!1 &525229055
 GameObject:
   m_ObjectHideFlags: 0
@@ -4367,6 +4451,51 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1817964789}
   m_CullTransparentMesh: 1
+--- !u!1 &1888971069
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1888971071}
+  - component: {fileID: 1888971070}
+  m_Layer: 0
+  m_Name: GolfGameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1888971070
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1888971069}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f74ccccdbde2484cbeac412590c78aa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GolfGameManager
+  waterPenaltyPosition: {x: 320, y: 105, z: 246}
+--- !u!4 &1888971071
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1888971069}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1905838662
 GameObject:
   m_ObjectHideFlags: 0
@@ -5238,3 +5367,5 @@ SceneRoots:
   - {fileID: 612570172}
   - {fileID: 436398454}
   - {fileID: 483726870}
+  - {fileID: 1888971071}
+  - {fileID: 430095893}
