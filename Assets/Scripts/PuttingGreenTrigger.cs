@@ -38,7 +38,7 @@ public class PuttingGreenTrigger : MonoBehaviour
 
     void Start()
     {
-        _swing = FindObjectOfType<GolfSwingController>();
+        _swing = FindFirstObjectByType<GolfSwingController>();
         if (_swing == null)
             Debug.LogWarning("[PuttingGreenTrigger] GolfSwingController not found in scene.");
     }

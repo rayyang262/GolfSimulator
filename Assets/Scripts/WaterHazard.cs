@@ -22,7 +22,7 @@ public class WaterHazard : MonoBehaviour
 
         if (!isGolfBall) return;
 
-        GolfSwingController swing = FindObjectOfType<GolfSwingController>();
+        GolfSwingController swing = FindFirstObjectByType<GolfSwingController>();
 
         if (GolfGameManager.Instance != null)
         {

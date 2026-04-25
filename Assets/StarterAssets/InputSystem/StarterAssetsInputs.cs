@@ -77,7 +77,7 @@ namespace StarterAssets
 		private void Update()
 		{
 			if (_phoneAnimator == null)
-				_phoneAnimator = FindObjectOfType<PhoneAnimator>();
+				_phoneAnimator = FindFirstObjectByType<PhoneAnimator>();
 
 			if (_phoneAnimator != null && _phoneAnimator.IsPhoneUp)
 			{
