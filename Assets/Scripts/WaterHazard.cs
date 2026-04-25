@@ -8,7 +8,11 @@ public class WaterHazard : MonoBehaviour
     private void Awake()
     {
         foreach (Collider col in GetComponents<Collider>())
+        {
+            if (col is MeshCollider mc)
+                mc.convex = true;
             col.isTrigger = true;
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -22,7 +26,7 @@ public class WaterHazard : MonoBehaviour
 
         if (!isGolfBall) return;
 
-        GolfSwingController swing = FindObjectOfType<GolfSwingController>();
+        GolfSwingController swing = FindFirstObjectByType<GolfSwingController>();
 
         if (GolfGameManager.Instance != null)
         {
