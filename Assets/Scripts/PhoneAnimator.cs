@@ -80,25 +80,12 @@ public class PhoneAnimator : MonoBehaviour
     {
         yield return null;
 
+        // Capture the final (up) position, then hide the phone below screen.
+        // isUp stays false so cursor remains locked and first-person mode is active.
+        // Player presses I to raise the phone explicitly.
         finalPos = transform.localPosition;
         transform.localPosition = finalPos + new Vector3(0f, -startOffsetBelow, 0f);
-
-        yield return new WaitForSeconds(slideDelay);
-
-        Vector3 startPos = transform.localPosition;
-        float elapsed = 0f;
-
-        while (elapsed < slideDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / slideDuration);
-            float curved = slideCurve.Evaluate(t);
-            transform.localPosition = Vector3.LerpUnclamped(startPos, finalPos, curved);
-            yield return null;
-        }
-
-        transform.localPosition = finalPos;
-        isUp = true;
+        isUp = false;
     }
 
     public void PlayTapFeedback()
