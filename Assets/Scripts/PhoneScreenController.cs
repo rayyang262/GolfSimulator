@@ -77,10 +77,10 @@ public class PhoneScreenController : MonoBehaviour
         if (fgText != null)
             fgText.text = "FG%: 0/0";
 
-        phoneAnimator = FindObjectOfType<PhoneAnimator>();
+        phoneAnimator = FindFirstObjectByType<PhoneAnimator>();
 
         // Auto-find phone screen mesh for click detection
-        var rtSetup = FindObjectOfType<PhoneRenderTextureSetup>();
+        var rtSetup = FindFirstObjectByType<PhoneRenderTextureSetup>();
         if (rtSetup != null && rtSetup.phoneScreen != null)
             phoneScreenRenderer = rtSetup.phoneScreen;
         if (phoneScreenRenderer == null && transform.parent != null)

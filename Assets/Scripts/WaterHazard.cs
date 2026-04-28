@@ -8,7 +8,11 @@ public class WaterHazard : MonoBehaviour
     private void Awake()
     {
         foreach (Collider col in GetComponents<Collider>())
+        {
+            if (col is MeshCollider mc)
+                mc.convex = true;
             col.isTrigger = true;
+        }
     }
 
     private void OnTriggerEnter(Collider other)

@@ -55,7 +55,7 @@ public class GolfSwingController : MonoBehaviour
     private GameObject   _ball;
     private Rigidbody    _ballRb;
     private TrailRenderer _ballTrail;
-    private bool         _isHolding;
+
     private bool         _isSwinging;
     private float        _holdTime;
     private float        _currentClubAngle;   // local X rotation of clubPivot
@@ -80,7 +80,6 @@ public class GolfSwingController : MonoBehaviour
         // ── Spacebar: swing trigger only — no jumping, no mouse ──────────────
         if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
         {
-            _isHolding = true;
             _holdTime  = maxPower / powerPerSecond * 0.75f;  // 75 % power on spacebar
             StartCoroutine(Downswing());
         }
@@ -92,7 +91,6 @@ public class GolfSwingController : MonoBehaviour
 
     void BeginBackswing()
     {
-        _isHolding  = true;
         _holdTime   = 0f;
         PlaySound(swingWhoosh, 0.3f);
     }
@@ -145,7 +143,6 @@ public class GolfSwingController : MonoBehaviour
     {
         if (_isSwinging) return;
         // Back-calculate holdTime so Downswing() derives the same power value
-        _isHolding = true;
         _holdTime  = power / powerPerSecond;
         StartCoroutine(Downswing());
     }
@@ -156,7 +153,6 @@ public class GolfSwingController : MonoBehaviour
     public void PhoneWhiff()
     {
         if (_isSwinging) return;
-        _isHolding = false;
         StartCoroutine(ReturnClubToRest());
     }
 
@@ -164,7 +160,6 @@ public class GolfSwingController : MonoBehaviour
 
     IEnumerator Downswing()
     {
-        _isHolding  = false;
         _isSwinging = true;
 
         float power           = Mathf.Clamp(_holdTime * powerPerSecond, 2f, maxPower);
