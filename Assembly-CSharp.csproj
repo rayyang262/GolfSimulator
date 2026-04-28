@@ -112,6 +112,7 @@
     <Compile Include="Assets\Scripts\gradient.cs" />
     <Compile Include="Assets\extOSC\Examples\03) Events\Scripts\EventsExample.cs" />
     <Compile Include="Assets\Scripts\DisplayLibraryModeToggle.cs" />
+    <Compile Include="Assets\Scripts\ShootingArcOverlay.cs" />
     <Compile Include="Assets\extOSC\Examples\13) Marshalling\Scripts\MarshallingExample.cs" />
     <Compile Include="Assets\StarterAssets\FirstPersonController\Scripts\FirstPersonController.cs" />
     <Compile Include="Assets\Scripts\GolfGameManager.cs" />
