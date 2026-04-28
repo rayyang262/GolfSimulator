@@ -57,6 +57,7 @@
     <Compile Include="Assets/Scripts/PhoneRenderTextureSetup.cs" />
     <Compile Include="Assets/extOSC/Examples/06) Mapping/Scripts/MappingExample.cs" />
     <Compile Include="Assets/Scripts/PuttingGreenTrigger.cs" />
+    <Compile Include="Assets/Scripts/SwingImpactEffects.cs" />
     <Compile Include="Assets/Scripts/GolfBallInteraction.cs" />
     <Compile Include="Assets/extOSC/Examples/01) Getting Started/Scripts/SimpleMessageReceiver.cs" />
     <Compile Include="Assets/extOSC/Examples/07) Scripting/Scripts/ScriptingExample.cs" />

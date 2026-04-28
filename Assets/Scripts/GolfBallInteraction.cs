@@ -234,8 +234,8 @@ public class GolfBallInteraction : MonoBehaviour
         if (_camRoot != null)
         {
             _preSstanceCamRot = _camRoot.localRotation;
-            // Start at a gentle downward look so the ball is visible
-            _camRoot.localRotation = Quaternion.Euler(8f, 0f, 0f);
+            // Look steeply downward so the ball at the player's feet is visible
+            _camRoot.localRotation = Quaternion.Euler(40f, 0f, 0f);
         }
 
         // ── Tell GolfSwingController we're ready ──────────────────────────
@@ -312,11 +312,11 @@ public class GolfBallInteraction : MonoBehaviour
                 _swing.loftAngle = Mathf.Clamp(_swing.loftAngle + loftDelta, 5f, 45f);
 
             // Always keep camera pitch in sync with current loft angle:
-            // loft  5° → pitch  +8° (looking slightly down at ball)
-            // loft 45° → pitch -18° (looking upward to follow the arc)
+            // loft  5° → pitch +40° (looking steeply down at ball)
+            // loft 45° → pitch -15° (looking upward to follow the arc)
             if (_camRoot != null)
             {
-                float camPitch = Mathf.Lerp(8f, -18f, (_swing.loftAngle - 5f) / 40f);
+                float camPitch = Mathf.Lerp(40f, -15f, (_swing.loftAngle - 5f) / 40f);
                 _camRoot.localRotation = Quaternion.Euler(camPitch, 0f, 0f);
             }
         }

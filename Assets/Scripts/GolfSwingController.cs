@@ -45,6 +45,12 @@ public class GolfSwingController : MonoBehaviour
     [Tooltip("Direction ball travels. Set by GolfBallInteraction from arrow-key aim.")]
     public Vector3 aimDirection = Vector3.zero;
 
+    [Tooltip("Global force multiplier. 0.25 = 75% reduction. PuttingGreenTrigger overrides this.")]
+    [HideInInspector] public float powerScale = 0.25f;
+
+    /// <summary>True while the ball is in flight. TouchOscSwingController waits on this.</summary>
+    [HideInInspector] public bool ballInFlight = false;
+
     // ── private state ────────────────────────────────────────────────
     private GameObject   _ball;
     private Rigidbody    _ballRb;
@@ -258,12 +264,14 @@ public class GolfSwingController : MonoBehaviour
         dir = Quaternion.AngleAxis(-loftAngle, right) * dir;
         dir.Normalize();
 
-        const float powerScale = 0.25f;   // 25 % of original = 75 % reduction
         _ballRb.AddForce(dir * power * powerScale, ForceMode.Impulse);
         _ballRb.AddTorque(right * power * 2f * powerScale, ForceMode.Impulse);
 
         // Enable green flight trail
         if (_ballTrail != null) _ballTrail.emitting = true;
+
+        // Mark ball as in-flight (blocks next swing until ball stops)
+        ballInFlight = true;
 
         // Record this stroke with the game manager
         GolfGameManager.Instance?.RecordStroke();
@@ -285,8 +293,9 @@ public class GolfSwingController : MonoBehaviour
         while (_ballRb != null && _ballRb.linearVelocity.magnitude > 0.3f)
             yield return new WaitForSeconds(0.5f);
 
-        // Stop trail emission once ball is at rest
+        // Stop trail and clear in-flight flag once ball is at rest
         if (_ballTrail != null) _ballTrail.emitting = false;
+        ballInFlight = false;
 
         // Move spawn point to where ball landed for next shot
         if (_ball != null && ballSpawnPoint != null)

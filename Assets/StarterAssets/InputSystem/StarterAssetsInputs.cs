@@ -37,7 +37,7 @@ namespace StarterAssets
 
 		public void OnJump(InputValue value)
 		{
-			JumpInput(value.isPressed);
+			// Jump disabled — spacebar is reserved for swing
 		}
 
 		public void OnSprint(InputValue value)
