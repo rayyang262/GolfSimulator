@@ -259,6 +259,10 @@ public class GolfSwingController : MonoBehaviour
         dir = Quaternion.AngleAxis(-loftAngle, right) * dir;
         dir.Normalize();
 
+        // Re-enable physics in case the ball was frozen after a penalty respawn
+        if (_ballRb.isKinematic)
+            _ballRb.isKinematic = false;
+
         _ballRb.AddForce(dir * power * powerScale, ForceMode.Impulse);
         _ballRb.AddTorque(right * power * 2f * powerScale, ForceMode.Impulse);
 
@@ -313,14 +317,18 @@ public class GolfSwingController : MonoBehaviour
         if (terrain != null)
             worldPos.y = terrain.SampleHeight(worldPos) + terrain.transform.position.y + 0.08f;
 
-        _ballRb.linearVelocity  = Vector3.zero;
-        _ballRb.angularVelocity = Vector3.zero;
+        // Zero all motion first, then make kinematic so the ball cannot
+        // slide or roll on any slope until the player actually swings.
+        _ballRb.linearVelocity   = Vector3.zero;
+        _ballRb.angularVelocity  = Vector3.zero;
+        _ballRb.isKinematic      = true;   // ← frozen in place; physics cannot move it
         _ball.transform.position = worldPos;
 
         if (_ballTrail != null) { _ballTrail.emitting = false; _ballTrail.Clear(); }
 
         readyToHit = false;
-        Debug.Log($"[GolfSwing] Penalty respawn → {worldPos}");
+        ballInFlight = false;
+        Debug.Log($"[GolfSwing] Penalty respawn → {worldPos}  (ball locked until next shot)");
     }
 
     IEnumerator ReturnClubToRest()

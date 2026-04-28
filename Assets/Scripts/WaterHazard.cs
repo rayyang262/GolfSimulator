@@ -3,7 +3,7 @@ using UnityEngine;
 public class WaterHazard : MonoBehaviour
 {
     [Header("Penalty Spawn")]
-    public Vector3 penaltyPosition = new Vector3(320f, 105f, 246f);
+    public Vector3 penaltyPosition = new Vector3(320f, 105f, 24f);
 
     private void Awake()
     {
