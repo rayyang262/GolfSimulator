@@ -45,6 +45,12 @@ public class GolfSwingController : MonoBehaviour
     [Tooltip("Direction ball travels. Set by GolfBallInteraction from arrow-key aim.")]
     public Vector3 aimDirection = Vector3.zero;
 
+    [Tooltip("Global force multiplier. 0.25 = 75% reduction. PuttingGreenTrigger overrides this.")]
+    [HideInInspector] public float powerScale = 0.25f;
+
+    /// <summary>True while the ball is in flight. TouchOscSwingController waits on this.</summary>
+    [HideInInspector] public bool ballInFlight = false;
+
     // ── private state ────────────────────────────────────────────────
     private GameObject   _ball;
     private Rigidbody    _ballRb;
@@ -253,12 +259,18 @@ public class GolfSwingController : MonoBehaviour
         dir = Quaternion.AngleAxis(-loftAngle, right) * dir;
         dir.Normalize();
 
-        const float powerScale = 0.25f;   // 25 % of original = 75 % reduction
+        // Re-enable physics in case the ball was frozen after a penalty respawn
+        if (_ballRb.isKinematic)
+            _ballRb.isKinematic = false;
+
         _ballRb.AddForce(dir * power * powerScale, ForceMode.Impulse);
         _ballRb.AddTorque(right * power * 2f * powerScale, ForceMode.Impulse);
 
         // Enable green flight trail
         if (_ballTrail != null) _ballTrail.emitting = true;
+
+        // Mark ball as in-flight (blocks next swing until ball stops)
+        ballInFlight = true;
 
         // Record this stroke with the game manager
         GolfGameManager.Instance?.RecordStroke();
@@ -280,8 +292,9 @@ public class GolfSwingController : MonoBehaviour
         while (_ballRb != null && _ballRb.linearVelocity.magnitude > 0.3f)
             yield return new WaitForSeconds(0.5f);
 
-        // Stop trail emission once ball is at rest
+        // Stop trail and clear in-flight flag once ball is at rest
         if (_ballTrail != null) _ballTrail.emitting = false;
+        ballInFlight = false;
 
         // Move spawn point to where ball landed for next shot
         if (_ball != null && ballSpawnPoint != null)
@@ -304,14 +317,18 @@ public class GolfSwingController : MonoBehaviour
         if (terrain != null)
             worldPos.y = terrain.SampleHeight(worldPos) + terrain.transform.position.y + 0.08f;
 
-        _ballRb.linearVelocity  = Vector3.zero;
-        _ballRb.angularVelocity = Vector3.zero;
+        // Zero all motion first, then make kinematic so the ball cannot
+        // slide or roll on any slope until the player actually swings.
+        _ballRb.linearVelocity   = Vector3.zero;
+        _ballRb.angularVelocity  = Vector3.zero;
+        _ballRb.isKinematic      = true;   // ← frozen in place; physics cannot move it
         _ball.transform.position = worldPos;
 
         if (_ballTrail != null) { _ballTrail.emitting = false; _ballTrail.Clear(); }
 
         readyToHit = false;
-        Debug.Log($"[GolfSwing] Penalty respawn → {worldPos}");
+        ballInFlight = false;
+        Debug.Log($"[GolfSwing] Penalty respawn → {worldPos}  (ball locked until next shot)");
     }
 
     IEnumerator ReturnClubToRest()

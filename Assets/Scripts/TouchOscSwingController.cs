@@ -1,20 +1,31 @@
 using UnityEngine;
 
 /// <summary>
-/// Accelerometer-only swing controller for TouchOSC MK1 (no gyroscope needed).
+/// Backswing-first swing controller for TouchOSC MK1 accelerometer (/accxyz).
 ///
-/// Uses /accxyz for TWO things simultaneously:
-///   1. ORIENTATION — smoothed (low-pass) gravity vector → pitch/roll → club rotation mirrors phone
-///   2. SWING DETECTION — raw magnitude spike above threshold → impact → ball launches
-///
-/// TOUCHOSC MK1: Settings ⚙ → Accelerometer (/accxyz) ON
-///               Connections → Host = PC WiFi IP, Port outgoing = 9000
+/// STATE MACHINE:
+///   IDLE
+///     │  Phone tilts back past backswingPitchThreshold (club "cocked")
+///     ▼
+///   BACKSWING — held for minBackswingHold seconds
+///     │  Pitch drops below backswingResetThreshold → back to IDLE (abort)
+///     ▼
+///   ARMED — "READY — SWING NOW" banner pulses on screen
+///     │  Pitch drops before swing (abort) → IDLE
+///     │  Magnitude spike ≥ swingThreshold AND starts falling →
+///     ▼
+///   HIT — PhoneTriggerHit(power), impact effects fire
+///     ▼
+///   COOLDOWN — countdown timer on screen; locked until timer done
+///              AND GolfSwingController.ballInFlight == false
+///     ▼
+///   IDLE
 /// </summary>
 [RequireComponent(typeof(OscReceiver))]
 [RequireComponent(typeof(GolfSwingController))]
 public class TouchOscSwingController : MonoBehaviour
 {
-    // ── Inspector ────────────────────────────────────────────────────────
+    // ── Inspector ─────────────────────────────────────────────────────────────
 
     [Header("References")]
     public GolfSwingController swingController;
@@ -23,50 +34,46 @@ public class TouchOscSwingController : MonoBehaviour
     public string accelAddress = "/accxyz";
 
     [Header("Orientation Tracking")]
-    [Tooltip("How fast the club follows the phone tilt. Higher = more responsive, lower = smoother.")]
     [Range(1f, 25f)]
     public float orientationSmoothing = 8f;
-
-    [Tooltip("Scales forward/back tilt → backswing angle. Flip to -1 if club goes the wrong way.")]
+    [Tooltip("Flip to -1 if the club tilts the wrong way.")]
     public float pitchMultiplier = 1f;
+    public float rollMultiplier  = 0.4f;
 
-    [Tooltip("Scales left/right tilt → club face angle. Set 0 to disable.")]
-    public float rollMultiplier = 0.4f;
+    [Header("Backswing Detection")]
+    [Tooltip("Pitch angle (°) the phone must reach to count as cocked.")]
+    public float backswingPitchThreshold  = 35f;
+    [Tooltip("Seconds phone must hold that angle before arming.")]
+    public float minBackswingHold         = 0.15f;
+    [Tooltip("Pitch (°) below which backswing is considered aborted.")]
+    public float backswingResetThreshold  = 18f;
 
     [Header("Swing Detection")]
-    [Tooltip("g-magnitude above which we start tracking a swing (filters normal movement).")]
-    public float activationThreshold = 1.4f;   // start tracking when mag > 1.4g
+    public float swingThreshold  = 2.0f;   // g at which a swing is a valid hit
+    public float maxAccelG       = 5.5f;   // g that maps to max power
+    public float maxSwingWindow  = 1.5f;   // seconds before auto-whiff
 
-    [Tooltip("Peak g-magnitude required for a valid hit.")]
-    public float swingThreshold = 2.0f;
+    [Header("Cooldown")]
+    public float cooldownDuration = 2.0f;  // min seconds between swings
 
-    [Tooltip("g-magnitude that maps to maximum swing power.")]
-    public float maxAccelG = 5.5f;
+    // ── private ───────────────────────────────────────────────────────────────
 
-    [Tooltip("Seconds after activation before swing auto-resets if no impact detected (whiff timeout).")]
-    public float maxSwingWindow = 1.5f;
-
-    [Tooltip("Seconds after a hit before next swing can register.")]
-    public float cooldownDuration = 1.5f;
-
-    // ── raw OSC values (written by callback) ─────────────────────────────
     private float _rawAx, _rawAy, _rawAz;
-
-    // ── smoothed values for orientation (updated in Update) ──────────────
     private float _smoothAx, _smoothAy, _smoothAz;
 
-    // ── swing state machine ───────────────────────────────────────────────
-    private enum SwingState { Idle, Active, Cooldown }
+    private enum SwingState { Idle, Backswing, Armed, Cooldown }
     private SwingState _state = SwingState.Idle;
 
-    private float _peakMag;         // highest magnitude seen in current Active window
-    private float _prevMag;         // magnitude from previous frame (for peak detection)
+    private float _backswingTimer;
+    private float _peakMag;
+    private float _prevMag;
     private float _windowTimer;
     private float _cooldownTimer;
 
-    private OscReceiver _osc;
+    private OscReceiver        _osc;
+    private SwingImpactEffects _effects;
 
-    // ── lifecycle ────────────────────────────────────────────────────────
+    // ── lifecycle ─────────────────────────────────────────────────────────────
 
     void Start()
     {
@@ -74,19 +81,22 @@ public class TouchOscSwingController : MonoBehaviour
         if (swingController == null)
             swingController = GetComponent<GolfSwingController>();
 
+        _effects = GetComponent<SwingImpactEffects>();
+        if (_effects == null) _effects = FindFirstObjectByType<SwingImpactEffects>();
+
         if (_osc == null || swingController == null)
         {
-            Debug.LogError("[TouchOSC] Missing OscReceiver or GolfSwingController on this GameObject.");
+            Debug.LogError("[TouchOSC] Missing OscReceiver or GolfSwingController.");
             enabled = false;
             return;
         }
 
-        // Seed smoothing to "phone held upright" so club doesn't snap on first frame
-        _rawAy = _smoothAy = -1f;
-
+        _rawAy = _smoothAy = -1f;   // seed: phone held upright
         _osc.OnMessage += OnOscMessage;
-        Debug.Log("[TouchOSC] Ready — accelerometer orientation + swing detection active.\n" +
-                  $"Thresholds: activate>{activationThreshold:F1}g  hit>{swingThreshold:F1}g  maxPower@{maxAccelG:F1}g");
+
+        Debug.Log("[TouchOSC] Backswing-first swing detection ready.\n" +
+                  $"  Cock phone back >{backswingPitchThreshold:F0}° → hold {minBackswingHold:F2}s → swing!\n" +
+                  $"  Hit threshold: {swingThreshold:F1}g  |  Cooldown: {cooldownDuration:F1}s");
     }
 
     void OnDestroy()
@@ -94,75 +104,110 @@ public class TouchOscSwingController : MonoBehaviour
         if (_osc != null) _osc.OnMessage -= OnOscMessage;
     }
 
-    // ── Update: smoothing + state machine once per frame ─────────────────
+    // ── Update ────────────────────────────────────────────────────────────────
 
     void Update()
     {
-        // ── Low-pass filter: smooth out rapid motion, keep gravity direction ──
+        // Smooth accelerometer → stable gravity direction for orientation
         float t = Time.deltaTime * orientationSmoothing;
         _smoothAx = Mathf.Lerp(_smoothAx, _rawAx, t);
         _smoothAy = Mathf.Lerp(_smoothAy, _rawAy, t);
         _smoothAz = Mathf.Lerp(_smoothAz, _rawAz, t);
 
-        // ── Mirror phone orientation onto club (skip during downswing animation) ──
+        // Mirror phone tilt onto club (skip during cooldown so club rests)
         if (_state != SwingState.Cooldown)
             UpdateClubOrientation();
 
-        // ── Swing state machine ──────────────────────────────────────────
-        // Raw magnitude (not smoothed) is used for detection so we catch fast spikes
-        float mag = Mathf.Sqrt(_rawAx * _rawAx + _rawAy * _rawAy + _rawAz * _rawAz);
+        float pitch = GetPitch();
+        float mag   = Mathf.Sqrt(_rawAx * _rawAx + _rawAy * _rawAy + _rawAz * _rawAz);
 
         switch (_state)
         {
+            // ── IDLE ─────────────────────────────────────────────────────────
             case SwingState.Idle:
-                if (mag > activationThreshold)
+                if (pitch > backswingPitchThreshold)
                 {
-                    _state       = SwingState.Active;
-                    _peakMag     = mag;
-                    _prevMag     = mag;
-                    _windowTimer = 0f;
-                    Debug.Log($"[TouchOSC] Swing armed (mag={mag:F2}g)");
+                    _state          = SwingState.Backswing;
+                    _backswingTimer = 0f;
+                    Debug.Log($"[TouchOSC] Backswing detected (pitch={pitch:F1}°) — hold...");
                 }
                 break;
 
-            case SwingState.Active:
-                _windowTimer += Time.deltaTime;
+            // ── BACKSWING ────────────────────────────────────────────────────
+            case SwingState.Backswing:
+                if (pitch > backswingPitchThreshold)
+                {
+                    _backswingTimer += Time.deltaTime;
+                    if (_backswingTimer >= minBackswingHold)
+                    {
+                        _state       = SwingState.Armed;
+                        _peakMag     = mag;
+                        _prevMag     = mag;
+                        _windowTimer = 0f;
+                        _effects?.SetReadyIndicator(true);
+                        Debug.Log("[TouchOSC] ARMED — swing now!");
+                    }
+                }
+                else if (pitch < backswingResetThreshold)
+                {
+                    _state = SwingState.Idle;   // aborted before arming
+                }
+                break;
 
+            // ── ARMED ────────────────────────────────────────────────────────
+            case SwingState.Armed:
+                _windowTimer += Time.deltaTime;
                 if (mag > _peakMag) _peakMag = mag;
 
-                // Impact = peak exceeded threshold AND magnitude is now falling off the peak
                 bool hitThreshold = _peakMag >= swingThreshold;
-                bool pastPeak     = mag < _prevMag * 0.88f;   // 12% drop = past the impact moment
+                bool pastPeak     = mag < _prevMag * 0.88f;  // 12% drop = past impact
 
                 if (hitThreshold && pastPeak)
                 {
+                    _effects?.SetReadyIndicator(false);
                     float power = Mathf.Lerp(2f, swingController.maxPower,
                                              Mathf.InverseLerp(swingThreshold, maxAccelG, _peakMag));
-                    Debug.Log($"[TouchOSC] Hit!  peakMag={_peakMag:F2}g  power={power:F1}");
+
+                    Debug.Log($"[TouchOSC] HIT! peakMag={_peakMag:F2}g  power={power:F2}");
                     swingController.PhoneTriggerHit(power);
+                    _effects?.PlayImpactEffects(power, swingController.maxPower);
                     EnterCooldown();
                     break;
                 }
 
                 if (_windowTimer >= maxSwingWindow)
                 {
-                    Debug.Log("[TouchOSC] Whiff — swing timed out.");
+                    _effects?.SetReadyIndicator(false);
+                    Debug.Log("[TouchOSC] Swing window expired — whiff.");
                     swingController.PhoneWhiff();
                     EnterCooldown();
+                    break;
+                }
+
+                // Phone returned to neutral before swinging → silent abort
+                if (pitch < backswingResetThreshold && _windowTimer > 0.3f)
+                {
+                    _effects?.SetReadyIndicator(false);
+                    _state = SwingState.Idle;
+                    Debug.Log("[TouchOSC] Swing aborted (phone returned to neutral).");
                 }
 
                 _prevMag = mag;
                 break;
 
+            // ── COOLDOWN ─────────────────────────────────────────────────────
             case SwingState.Cooldown:
                 _cooldownTimer += Time.deltaTime;
-                if (_cooldownTimer >= cooldownDuration)
+                if (_cooldownTimer >= cooldownDuration && !swingController.ballInFlight)
+                {
                     _state = SwingState.Idle;
+                    Debug.Log("[TouchOSC] Ready for next shot.");
+                }
                 break;
         }
     }
 
-    // ── OSC callback (fires on main thread via OscReceiver.Update) ────────
+    // ── OSC callback ─────────────────────────────────────────────────────────
 
     void OnOscMessage(string address, float[] values)
     {
@@ -172,35 +217,29 @@ public class TouchOscSwingController : MonoBehaviour
         _rawAz = values[2];
     }
 
-    // ── Orientation mapping ───────────────────────────────────────────────
+    // ── Orientation ───────────────────────────────────────────────────────────
 
     void UpdateClubOrientation()
     {
-        // Normalise so only the direction of gravity matters
         float mag = Mathf.Sqrt(_smoothAx * _smoothAx + _smoothAy * _smoothAy + _smoothAz * _smoothAz);
         if (mag < 0.05f) return;
-
-        float nx = _smoothAx / mag;
-        float ny = _smoothAy / mag;
-        float nz = _smoothAz / mag;
-
-        // Pitch: forward/back tilt → backswing X rotation
-        //   Phone upright portrait: ny≈-1, nz≈0 → pitch=0 (club at rest)
-        //   Top of phone tilts away: nz goes negative → pitch increases → club goes back
+        float nx = _smoothAx / mag, ny = _smoothAy / mag, nz = _smoothAz / mag;
         float pitch = Mathf.Atan2(-nz, -ny) * Mathf.Rad2Deg;
+        float roll  = Mathf.Atan2(nx,  -ny) * Mathf.Rad2Deg;
+        swingController.PhoneSetClubOrientation(pitch * pitchMultiplier, roll * rollMultiplier);
+    }
 
-        // Roll: left/right tilt → club face Z rotation
-        float roll = Mathf.Atan2(nx, -ny) * Mathf.Rad2Deg;
-
-        swingController.PhoneSetClubOrientation(
-            pitch * pitchMultiplier,
-            roll  * rollMultiplier
-        );
+    float GetPitch()
+    {
+        float mag = Mathf.Sqrt(_smoothAx * _smoothAx + _smoothAy * _smoothAy + _smoothAz * _smoothAz);
+        if (mag < 0.05f) return 0f;
+        return Mathf.Atan2(-_smoothAz / mag, -_smoothAy / mag) * Mathf.Rad2Deg;
     }
 
     void EnterCooldown()
     {
         _state         = SwingState.Cooldown;
         _cooldownTimer = 0f;
+        _effects?.StartCooldown(cooldownDuration, () => swingController.ballInFlight);
     }
 }

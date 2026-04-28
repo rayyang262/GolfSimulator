@@ -8,7 +8,7 @@ public class GolfGameManager : MonoBehaviour
 {
     public static GolfGameManager Instance { get; private set; }
 
-    public Vector3 waterPenaltyPosition = new Vector3(320f, 105f, 246f);
+    public Vector3 waterPenaltyPosition = new Vector3(320f, 105f, 24f);
 
     private int _strokes;
     private int _penalties;
