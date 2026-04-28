@@ -61,6 +61,7 @@
     <Compile Include="Assets\Scripts\GolfBallInteraction.cs" />
     <Compile Include="Assets\extOSC\Examples\01) Getting Started\Scripts\SimpleMessageReceiver.cs" />
     <Compile Include="Assets\extOSC\Examples\07) Scripting\Scripts\ScriptingExample.cs" />
+    <Compile Include="Assets\Scripts\WindSpeedOverlay.cs" />
     <Compile Include="Assets\Scripts\StatDisplayManager.cs" />
     <Compile Include="Assets\Scripts\WaterFlow.cs" />
     <Compile Include="Assets\StarterAssets\Mobile\Scripts\Utilities\MobileDisableAutoSwitchControls.cs" />
@@ -91,6 +92,7 @@
     <Compile Include="Assets\extOSC\Examples\04) Informers\Scripts\InformersExample.cs" />
     <Compile Include="Assets\extOSC\Examples\01) Getting Started\Scripts\SimpleMessageTransmitter.cs" />
     <Compile Include="Assets\extOSC\Examples\11) Array\Scripts\ArrayExample.cs" />
+    <Compile Include="Assets\Scripts\WindArrowsGraphic.cs" />
     <Compile Include="Assets\StarterAssets\InputSystem\StarterAssetsInputs.cs" />
   </ItemGroup>
   <ItemGroup>
