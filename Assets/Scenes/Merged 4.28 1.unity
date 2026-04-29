@@ -535,6 +535,53 @@ RectTransform:
   m_AnchoredPosition: {x: 90, y: 28}
   m_SizeDelta: {x: 300, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &164683724
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 164683726}
+  - component: {fileID: 164683725}
+  m_Layer: 0
+  m_Name: sandWedgeZone
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &164683725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 164683724}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39a2f435135f642c0823f6aae60941a4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SandWedgeTrigger
+  zoneSize: {x: 200, y: 0, z: 200}
+  zoneLineColor: {r: 1, g: 0.65, b: 0.1, a: 0.9}
+  zoneLineWidth: 1
+--- !u!4 &164683726
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 164683724}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 635, y: 102.44712, z: 217}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &174581232
 GameObject:
   m_ObjectHideFlags: 0
@@ -1728,7 +1775,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 721b55517b0cb49448636fdebee69757, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PuttingGreenTrigger
-  zoneSize: {x: 20, y: 4, z: 20}
+  zoneSize: {x: 50, y: 0, z: 50}
   putterMaxPower: 0.8
   putterLoftAngle: 3
   putterPowerScale: 0.12
@@ -6928,6 +6975,19 @@ MonoBehaviour:
     rollingAngularDamping: 2.8
     rollingFriction: 0.8
     uiColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  sandWedge:
+    name: Sand Wedge
+    loftAngle: 56
+    powerScale: 0.09
+    spinMultiplier: 4
+    linearDamping: 0.2
+    angularDamping: 0.55
+    bounciness: 0.1
+    groundFriction: 0.85
+    rollingLinearDamping: 2.4
+    rollingAngularDamping: 4
+    rollingFriction: 0.95
+    uiColor: {r: 1, g: 0.65, b: 0.15, a: 1}
   putter:
     name: Putter
     loftAngle: 3
@@ -6942,6 +7002,7 @@ MonoBehaviour:
     rollingFriction: 0.92
     uiColor: {r: 0.5, g: 1, b: 0.5, a: 1}
   putterOverride: 0
+  sandWedgeOverride: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -6955,3 +7016,4 @@ SceneRoots:
   - {fileID: 1888971071}
   - {fileID: 430095893}
   - {fileID: 840935830}
+  - {fileID: 164683726}
