@@ -8,7 +8,7 @@ using UnityEngine;
 /// </summary>
 public class ClubSystem : MonoBehaviour
 {
-    public enum ClubType { Driver, SevenIron, Putter }
+    public enum ClubType { Driver, SevenIron, SandWedge, Putter }
 
     // ── Club data ─────────────────────────────────────────────────────────────
     [System.Serializable]
@@ -61,6 +61,22 @@ public class ClubSystem : MonoBehaviour
         uiColor               = new Color(0.4f, 0.8f, 1f)
     };
 
+    public ClubData sandWedge = new ClubData
+    {
+        name                  = "Sand Wedge",
+        loftAngle             = 56f,           // default 56° — player adjusts with ↑↓ between 45°–62°
+        powerScale            = 0.09f,         // short punch shot — stays near the green
+        spinMultiplier        = 4.0f,          // heavy backspin to check quickly on landing
+        linearDamping         = 0.20f,
+        angularDamping        = 0.55f,
+        bounciness            = 0.10f,         // low — digs in rather than bouncing long
+        groundFriction        = 0.85f,
+        rollingLinearDamping  = 2.4f,          // stops fast after landing
+        rollingAngularDamping = 4.0f,
+        rollingFriction       = 0.95f,
+        uiColor               = new Color(1f, 0.65f, 0.15f)   // sandy orange
+    };
+
     public ClubData putter = new ClubData
     {
         name                  = "Putter",
@@ -82,7 +98,9 @@ public class ClubSystem : MonoBehaviour
     public ClubData  CurrentData  => GetData(CurrentClub);
 
     // Set true by PuttingGreenTrigger.OnTriggerEnter, false on OnTriggerExit
-    [HideInInspector] public bool putterOverride = false;
+    [HideInInspector] public bool putterOverride     = false;
+    // Set true by SandWedgeTrigger.OnTriggerEnter, false on OnTriggerExit
+    [HideInInspector] public bool sandWedgeOverride  = false;
 
     private GolfSwingController _swing;
     private bool                _teeShot = true;  // first shot of the hole = Driver
@@ -117,8 +135,9 @@ public class ClubSystem : MonoBehaviour
     /// </summary>
     public void ResetForNewHole()
     {
-        _teeShot = true;
-        putterOverride = false;
+        _teeShot         = true;
+        putterOverride   = false;
+        sandWedgeOverride = false;
         SelectClub();
     }
 
@@ -128,6 +147,8 @@ public class ClubSystem : MonoBehaviour
     {
         if (putterOverride)
             ApplyClub(ClubType.Putter);
+        else if (sandWedgeOverride)
+            ApplyClub(ClubType.SandWedge);
         else if (_teeShot)
             ApplyClub(ClubType.Driver);
         else
@@ -150,9 +171,10 @@ public class ClubSystem : MonoBehaviour
 
     public ClubData GetData(ClubType type) => type switch
     {
-        ClubType.Driver    => driver,
-        ClubType.SevenIron => sevenIron,
-        ClubType.Putter    => putter,
-        _                  => sevenIron
+        ClubType.Driver     => driver,
+        ClubType.SevenIron  => sevenIron,
+        ClubType.SandWedge  => sandWedge,
+        ClubType.Putter     => putter,
+        _                   => sevenIron
     };
 }

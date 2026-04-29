@@ -72,6 +72,7 @@
     <Compile Include="Assets/Scripts/OutOfBoundsTracker.cs" />
     <Compile Include="Assets/Scripts/ShootingArcOverlay.cs" />
     <Compile Include="Assets/extOSC/Examples/13) Marshalling/Scripts/MarshallingExample.cs" />
+    <Compile Include="Assets/Scripts/SandWedgeTrigger.cs" />
     <Compile Include="Assets/StarterAssets/FirstPersonController/Scripts/FirstPersonController.cs" />
     <Compile Include="Assets/Scripts/GolfGameManager.cs" />
     <Compile Include="Assets/Scripts/PhoneUISetup.cs" />

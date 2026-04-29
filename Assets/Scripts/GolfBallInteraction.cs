@@ -54,6 +54,7 @@ public class GolfBallInteraction : MonoBehaviour
     private CharacterController _cc;
     private Camera              _cam;
     private GolfSwingController _swing;
+    private ClubSystem          _clubs;
     private StarterAssetsInputs _inputs;
 
     private Transform _ballTransform;
@@ -80,6 +81,7 @@ public class GolfBallInteraction : MonoBehaviour
         _cc     = GetComponent<CharacterController>();
         _cam    = Camera.main;
         _swing  = GetComponent<GolfSwingController>();
+        _clubs  = GetComponent<ClubSystem>();
         _inputs = GetComponent<StarterAssetsInputs>();
 
         // Find the Cinemachine follow target (PlayerCameraRoot) — child of PlayerCapsule
@@ -324,15 +326,23 @@ public class GolfBallInteraction : MonoBehaviour
         if (_swing != null)
         {
             if (Mathf.Abs(loftDelta) > 0.001f)
-                _swing.loftAngle = Mathf.Clamp(_swing.loftAngle + loftDelta, 5f, 45f);
+            {
+                // Sand wedge unlocks high-loft range (45°–62°) for chip/pitch shots.
+                // All other clubs stay in the standard 5°–45° window.
+                bool isSandWedge = _clubs != null &&
+                                   _clubs.CurrentClub == ClubSystem.ClubType.SandWedge;
+                float minLoft = isSandWedge ? 45f :  5f;
+                float maxLoft = isSandWedge ? 62f : 45f;
+                _swing.loftAngle = Mathf.Clamp(_swing.loftAngle + loftDelta, minLoft, maxLoft);
+            }
 
-            // Keep camera pitch in sync with loft, preserving the -22° left tilt
-            // so the ball stays visible at lower-left throughout aim adjustment.
-            // loft  5° → pitch +48° (looking steeply down)
-            // loft 45° → pitch -15° (looking up to follow the arc)
+            // Keep camera pitch in sync with loft, preserving the -22° left tilt.
+            // Full range 5°–62° maps to pitch 48° (steeply down) → -25° (looking up).
+            // At 45° this gives roughly the same feel as before; wedge shots naturally
+            // tilt the view upward to watch the high arc.
             if (_camRoot != null)
             {
-                float camPitch = Mathf.Lerp(48f, -15f, (_swing.loftAngle - 5f) / 40f);
+                float camPitch = Mathf.Lerp(48f, -25f, (_swing.loftAngle - 5f) / 57f);
                 _camRoot.localRotation = Quaternion.Euler(camPitch, -22f, 0f);
             }
         }
