@@ -126,8 +126,15 @@ public class GolfBallInteraction : MonoBehaviour
         // ── Always block jump — spacebar is reserved for swing only ──────────
         if (_inputs != null) _inputs.jump = false;
 
-        // ── Ring: follow ball ─────────────────────────────────────────────
-        if (_ballTransform != null)
+        // ── Auto-exit stance the instant the ball leaves the ground ──────────
+        // This hides the aim line and resets stance so the ring + line don't
+        // keep drawing while the ball is flying through the air.
+        bool ballInFlight = _swing != null && _swing.ballInFlight;
+        if (_inStance && ballInFlight)
+            ExitStance();
+
+        // ── Ring: follow ball — hidden while ball is in flight ────────────────
+        if (_ballTransform != null && !ballInFlight)
         {
             _ringGO.SetActive(true);
             Vector3 rp = _ballTransform.position;

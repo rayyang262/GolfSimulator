@@ -31,8 +31,10 @@ public class GolfSwingController : MonoBehaviour
     public float maxBackswingAngle = 80f;  // degrees the club rotates back
     public float downswingSpeed    = 600f; // degrees/sec during downswing
 
-    [Header("Audio (optional)")]
+    [Header("Audio")]
     public AudioClip swingWhoosh;
+    [Tooltip("Ball impact sound. Drag golf.mp3 here, OR place it at Assets/Resources/golf.mp3 " +
+             "and it will be loaded automatically.")]
     public AudioClip ballHit;
 
     [Header("Phone Input (TouchOSC)")]
@@ -74,6 +76,11 @@ public class GolfSwingController : MonoBehaviour
         _audio = GetComponent<AudioSource>();
         if (_audio == null) _audio = gameObject.AddComponent<AudioSource>();
 
+        // Auto-load golf.mp3 if it hasn't been wired up in the Inspector.
+        // The file must live at  Assets/Resources/golf.mp3  for this to work.
+        if (ballHit == null)
+            ballHit = Resources.Load<AudioClip>("golf");
+
         _clubs = GetComponent<ClubSystem>();
 
         SpawnBall();
@@ -83,8 +90,9 @@ public class GolfSwingController : MonoBehaviour
     {
         if (_isSwinging) return;   // mid-downswing: ignore new input
 
-        // ── Spacebar: swing trigger only — no jumping, no mouse ──────────────
-        if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
+        // ── Spacebar: only allowed after player pressed B and locked into stance ─
+        if (readyToHit &&
+            Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
         {
             _holdTime  = maxPower / powerPerSecond * 0.75f;  // 75 % power on spacebar
             StartCoroutine(Downswing());
@@ -144,10 +152,16 @@ public class GolfSwingController : MonoBehaviour
 
     /// <summary>
     /// Triggers a downswing + hit with the given power (already calculated by TouchOscSwingController).
+    /// Ignored entirely if the player has not pressed B and locked into stance.
     /// </summary>
     public void PhoneTriggerHit(float power)
     {
         if (_isSwinging) return;
+        if (!readyToHit)
+        {
+            Debug.Log("[GolfSwing] Phone swing blocked — player has not pressed B to enter stance.");
+            return;
+        }
         // Back-calculate holdTime so Downswing() derives the same power value
         _holdTime  = power / powerPerSecond;
         StartCoroutine(Downswing());

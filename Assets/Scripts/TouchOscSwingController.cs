@@ -121,10 +121,25 @@ public class TouchOscSwingController : MonoBehaviour
         float pitch = GetPitch();
         float mag   = Mathf.Sqrt(_rawAx * _rawAx + _rawAy * _rawAy + _rawAz * _rawAz);
 
+        // ── Stance guard ──────────────────────────────────────────────────────
+        // If the player is not locked into stance (hasn't pressed B), cancel any
+        // active backswing / armed state and stay in Idle.
+        if (!swingController.readyToHit && _state != SwingState.Cooldown)
+        {
+            if (_state == SwingState.Backswing || _state == SwingState.Armed)
+            {
+                _effects?.SetReadyIndicator(false);
+                _state = SwingState.Idle;
+                Debug.Log("[TouchOSC] Stance lost — swing cancelled. Press B to get into position.");
+            }
+        }
+
         switch (_state)
         {
             // ── IDLE ─────────────────────────────────────────────────────────
             case SwingState.Idle:
+                // Only start tracking the backswing once the player is in stance
+                if (!swingController.readyToHit) break;
                 if (pitch > backswingPitchThreshold)
                 {
                     _state          = SwingState.Backswing;
