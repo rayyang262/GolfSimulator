@@ -326,6 +326,14 @@ public class BallStateManager : MonoBehaviour
             _swing.UpdateSpawnPoint(_ballTf.position);
         _swing.RespawnBall();
 
+        // ── 7b. Freeze the new ball immediately ───────────────────────────────
+        // SpawnBall() creates the ball with isKinematic = false, so on any slope
+        // it will roll away before the player swings. Freeze it here so it stays
+        // exactly where it landed until TryHitBall() unfreezes it on the swing.
+        // (TryHitBall already calls GolfBallRoller.ResetForLaunch() before
+        //  clearing isKinematic, so the kinematic→dynamic contact burst is safe.)
+        _swing.FreezeBall();
+
         // ── 8. Return to Aim ──────────────────────────────────────────────────
         _ballTf = null;
         _ballRb = null;
