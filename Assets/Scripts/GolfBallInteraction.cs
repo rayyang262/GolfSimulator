@@ -69,6 +69,10 @@ public class GolfBallInteraction : MonoBehaviour
     private Transform _camRoot;              // PlayerCameraRoot — drives camera pitch
     private Quaternion _preSstanceCamRot;   // saved so we restore it when exiting stance
 
+    /// <summary>Set true by BallStateManager during BallFollow/WaitingForContinue
+    /// to prevent B key from opening stance while the ball is in flight.</summary>
+    [HideInInspector] public bool blockBInput = false;
+
     // ── lifecycle ────────────────────────────────────────────────────────
 
     void Start()
@@ -164,7 +168,8 @@ public class GolfBallInteraction : MonoBehaviour
         }
 
         // ── B key ─────────────────────────────────────────────────────────
-        if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame)
+        if (!blockBInput &&
+            Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame)
         {
             Debug.Log($"[GolfBall] B pressed — inRange={inRange}  inStance={_inStance}  dist={dist:F1}m");
 
@@ -211,10 +216,13 @@ public class GolfBallInteraction : MonoBehaviour
         _aimDirection.Normalize();
 
         // ── Golf stance position ──────────────────────────────────────────
-        // Right-handed golfer stands to the RIGHT of the target line.
-        // The ball is to the player's left when they face the target.
+        // Right-handed golfer: stand BEHIND and to the RIGHT of the ball so that
+        // when the player faces the aim direction the ball is at their lower-left.
+        // This keeps camera, aim line, and ball launch all pointing the same way.
         Vector3 rightOfTarget = Quaternion.Euler(0f, 90f, 0f) * _aimDirection;
-        Vector3 stancePos     = _ballTransform.position + rightOfTarget * stanceWidth;
+        Vector3 stancePos     = _ballTransform.position
+                                - _aimDirection   * 0.8f   // 0.8 m behind the ball
+                                + rightOfTarget   * 0.55f; // 0.55 m to the right
         stancePos.y           = GetTerrainY(stancePos);
 
         // Teleport
@@ -222,11 +230,9 @@ public class GolfBallInteraction : MonoBehaviour
         transform.position = stancePos;
         _cc.enabled        = true;
 
-        // Rotate body to face the ball (perpendicular to aim = correct golf address)
-        Vector3 look = _ballTransform.position - transform.position;
-        look.y = 0f;
-        if (look.sqrMagnitude > 0.001f)
-            transform.rotation = Quaternion.LookRotation(look.normalized);
+        // ── Face the aim direction (NOT the ball) ─────────────────────────────
+        // Camera, aim line and launch vector all point the same way now.
+        transform.rotation = Quaternion.LookRotation(_aimDirection);
 
         _inStance = true;
 
@@ -234,8 +240,8 @@ public class GolfBallInteraction : MonoBehaviour
         if (_camRoot != null)
         {
             _preSstanceCamRot = _camRoot.localRotation;
-            // Look steeply downward so the ball at the player's feet is visible
-            _camRoot.localRotation = Quaternion.Euler(40f, 0f, 0f);
+            // Look down and slightly left so the ball at lower-left is visible
+            _camRoot.localRotation = Quaternion.Euler(48f, -22f, 0f);
         }
 
         // ── Tell GolfSwingController we're ready ──────────────────────────
@@ -294,15 +300,17 @@ public class GolfBallInteraction : MonoBehaviour
             if (Keyboard.current.downArrowKey.isPressed)  loftDelta -=  18f * Time.deltaTime;
         }
 
-        // ── Horizontal: rotate aim direction + rotate player body so camera pans ─
+        // ── Horizontal: rotate aim direction, yaw capsule to match ───────────
+        // Player position NEVER changes while aiming — only body rotation (yaw).
+        // Moving position every frame via CC toggle caused the jitter.
         if (Mathf.Abs(rotateH) > 0.001f)
         {
             _aimDirection = Quaternion.Euler(0f, rotateH, 0f) * _aimDirection;
             _aimDirection.Normalize();
             if (_swing != null) _swing.aimDirection = _aimDirection;
 
-            // Rotating the player capsule makes the attached Cinemachine camera pan left/right
-            transform.Rotate(Vector3.up * rotateH, Space.World);
+            // Pure yaw — feet stay planted, camera pans with the body
+            transform.rotation = Quaternion.LookRotation(_aimDirection);
         }
 
         // ── Vertical: update loft and tilt camera root to match ───────────────
@@ -311,13 +319,14 @@ public class GolfBallInteraction : MonoBehaviour
             if (Mathf.Abs(loftDelta) > 0.001f)
                 _swing.loftAngle = Mathf.Clamp(_swing.loftAngle + loftDelta, 5f, 45f);
 
-            // Always keep camera pitch in sync with current loft angle:
-            // loft  5° → pitch +40° (looking steeply down at ball)
-            // loft 45° → pitch -15° (looking upward to follow the arc)
+            // Keep camera pitch in sync with loft, preserving the -22° left tilt
+            // so the ball stays visible at lower-left throughout aim adjustment.
+            // loft  5° → pitch +48° (looking steeply down)
+            // loft 45° → pitch -15° (looking up to follow the arc)
             if (_camRoot != null)
             {
-                float camPitch = Mathf.Lerp(40f, -15f, (_swing.loftAngle - 5f) / 40f);
-                _camRoot.localRotation = Quaternion.Euler(camPitch, 0f, 0f);
+                float camPitch = Mathf.Lerp(48f, -15f, (_swing.loftAngle - 5f) / 40f);
+                _camRoot.localRotation = Quaternion.Euler(camPitch, -22f, 0f);
             }
         }
     }
@@ -326,11 +335,60 @@ public class GolfBallInteraction : MonoBehaviour
 
     void UpdateAimLine()
     {
-        if (_aimLine == null || _ballTransform == null) return;
+        if (_aimLine == null || _ballTransform == null || _swing == null) return;
         SetAimLineVisible(true);
-        Vector3 origin = _ballTransform.position + Vector3.up * 0.08f;
-        _aimLine.SetPosition(0, origin);
-        _aimLine.SetPosition(1, origin + _aimDirection * aimLineLength);
+
+        // ── Launch parameters at 75 % power (representative preview) ─────────
+        float loftDeg = _swing.loftAngle;
+        float loftRad = loftDeg * Mathf.Deg2Rad;
+
+        // force → speed:  F = m·a → v = F / m  (impulse over 1 s approximation)
+        const float BallMass = 0.046f;
+        float previewForce   = _swing.maxPower * 0.75f * _swing.powerScale;
+        float speed          = previewForce / BallMass;
+
+        float vH = speed * Mathf.Cos(loftRad);   // horizontal component
+        float vV = speed * Mathf.Sin(loftRad);   // vertical component
+        float g  = Mathf.Abs(Physics.gravity.y);  // 9.81
+
+        // Time of flight (y = 0 again).  Cap at 8 s so putter doesn't draw forever.
+        float tFlight = (g > 0f && vV > 0f) ? (2f * vV / g) : 0.3f;
+        tFlight = Mathf.Clamp(tFlight, 0.2f, 8f);
+
+        // ── Draw parabola ─────────────────────────────────────────────────────
+        const int MaxPts = 48;
+        Vector3   origin  = _ballTransform.position + Vector3.up * 0.05f;
+        Vector3   flatDir = new Vector3(_aimDirection.x, 0f, _aimDirection.z).normalized;
+
+        Terrain terrain = Terrain.activeTerrain;
+
+        int pts = MaxPts;
+        for (int i = 0; i < MaxPts; i++)
+        {
+            float t     = (float)i / (MaxPts - 1) * tFlight;
+            float hDist = vH * t;
+            float vDist = vV * t - 0.5f * g * t * t;
+
+            Vector3 pt = origin + flatDir * hDist + Vector3.up * vDist;
+
+            // Clamp to terrain so arc doesn't tunnel underground
+            if (terrain != null)
+            {
+                float ty = terrain.SampleHeight(pt) + terrain.transform.position.y + 0.04f;
+                if (pt.y < ty)
+                {
+                    pt.y = ty;
+                    _aimLine.SetPosition(i, pt);
+                    pts = i + 1;
+                    break;
+                }
+            }
+
+            _aimLine.SetPosition(i, pt);
+        }
+
+        // Trim unused segments so the LineRenderer doesn't draw stale points
+        _aimLine.positionCount = pts;
     }
 
     void SetAimLineVisible(bool visible)
@@ -387,9 +445,9 @@ public class GolfBallInteraction : MonoBehaviour
     {
         var go  = new GameObject("AimLine");
         _aimLine = go.AddComponent<LineRenderer>();
-        _aimLine.positionCount     = 2;
-        _aimLine.startWidth        = 0.14f;
-        _aimLine.endWidth          = 0.03f;
+        _aimLine.positionCount     = 48;   // enough resolution for a smooth arc
+        _aimLine.startWidth        = 0.18f;
+        _aimLine.endWidth          = 0.04f;
         _aimLine.useWorldSpace     = true;
         _aimLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
@@ -397,7 +455,7 @@ public class GolfBallInteraction : MonoBehaviour
         m.color = Color.yellow;
         _aimLine.material    = m;
         _aimLine.startColor  = Color.yellow;
-        _aimLine.endColor    = new Color(1f, 1f, 0f, 0.2f);
+        _aimLine.endColor    = new Color(1f, 1f, 0f, 0.15f);
         _aimLine.enabled     = false;
     }
 

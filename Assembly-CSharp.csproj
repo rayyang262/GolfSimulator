@@ -52,6 +52,7 @@
     <Compile Include="Assets/StarterAssets/Mobile/Scripts/VirtualInputs/UIVirtualTouchZone.cs" />
     <Compile Include="Assets/Scripts/CourtManager.cs" />
     <Compile Include="Assets/Scripts/LockScale.cs" />
+    <Compile Include="Assets/Scripts/ClubSystem.cs" />
     <Compile Include="Assets/Scripts/TouchOscSwingController.cs" />
     <Compile Include="Assets/StarterAssets/Mobile/Scripts/VirtualInputs/UIVirtualJoystick.cs" />
     <Compile Include="Assets/Scripts/PhoneRenderTextureSetup.cs" />
@@ -68,6 +69,7 @@
     <Compile Include="Assets/Scripts/gradient.cs" />
     <Compile Include="Assets/extOSC/Examples/03) Events/Scripts/EventsExample.cs" />
     <Compile Include="Assets/Scripts/DisplayLibraryModeToggle.cs" />
+    <Compile Include="Assets/Scripts/OutOfBoundsTracker.cs" />
     <Compile Include="Assets/Scripts/ShootingArcOverlay.cs" />
     <Compile Include="Assets/extOSC/Examples/13) Marshalling/Scripts/MarshallingExample.cs" />
     <Compile Include="Assets/StarterAssets/FirstPersonController/Scripts/FirstPersonController.cs" />
@@ -79,6 +81,7 @@
     <Compile Include="Assets/StarterAssets/Mobile/Scripts/VirtualInputs/UIVirtualButton.cs" />
     <Compile Include="Assets/TutorialInfo/Scripts/Readme.cs" />
     <Compile Include="Assets/extOSC/Examples/12) Match Pattern/Scripts/MatchPatternExample.cs" />
+    <Compile Include="Assets/Scripts/BallStateManager.cs" />
     <Compile Include="Assets/StarterAssets/FirstPersonController/Scripts/BasicRigidBodyPush.cs" />
     <Compile Include="Assets/Scripts/PhoneScreenController.cs" />
     <Compile Include="Assets/Scripts/StatCardToggle.cs" />
@@ -86,6 +89,7 @@
     <Compile Include="Assets/StarterAssets/Mobile/Scripts/CanvasInputs/UICanvasControllerInput.cs" />
     <Compile Include="Assets/Scripts/OscReceiver.cs" />
     <Compile Include="Assets/extOSC/Examples/02) Value Types/Scripts/ValueTypesExample.cs" />
+    <Compile Include="Assets/Scripts/GolfBallRoller.cs" />
     <Compile Include="Assets/extOSC/Examples/09) Address Masks/Scripts/AddressMaskExample.cs" />
     <Compile Include="Assets/Scripts/GolfHole.cs" />
     <Compile Include="Assets/Scripts/PhoneAnimator.cs" />

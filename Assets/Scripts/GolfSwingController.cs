@@ -55,12 +55,16 @@ public class GolfSwingController : MonoBehaviour
     private GameObject   _ball;
     private Rigidbody    _ballRb;
     private TrailRenderer _ballTrail;
+    private SphereCollider _ballCol;
 
     private bool         _isSwinging;
     private float        _holdTime;
     private float        _currentClubAngle;   // local X rotation of clubPivot
     private AudioSource  _audio;
     private Camera       _cam;
+
+    // ── Club system reference (optional — graceful if absent) ─────────────
+    private ClubSystem _clubs;
 
     // ── lifecycle ────────────────────────────────────────────────────
 
@@ -69,6 +73,8 @@ public class GolfSwingController : MonoBehaviour
         _cam   = Camera.main;
         _audio = GetComponent<AudioSource>();
         if (_audio == null) _audio = gameObject.AddComponent<AudioSource>();
+
+        _clubs = GetComponent<ClubSystem>();
 
         SpawnBall();
     }
@@ -242,7 +248,20 @@ public class GolfSwingController : MonoBehaviour
             return;
         }
 
-        // Direction: use arrow-key aim from GolfBallInteraction; fall back to camera forward
+        // ── Gather club data ──────────────────────────────────────────────────
+        bool hasClubs     = _clubs != null;
+        float activeLoft  = loftAngle;   // may have been overridden by PuttingGreenTrigger
+        float activeScale = powerScale;
+        float spinMult    = 2f;
+        if (hasClubs)
+        {
+            ClubSystem.ClubData cd = _clubs.CurrentData;
+            spinMult = cd.spinMultiplier;
+            // Apply per-club ball physics (drag, bounce) before shot
+            ApplyClubBallPhysics(cd);
+        }
+
+        // ── Direction ────────────────────────────────────────────────────────
         Vector3 dir;
         if (aimDirection.sqrMagnitude > 0.01f)
             dir = aimDirection.normalized;
@@ -254,54 +273,114 @@ public class GolfSwingController : MonoBehaviour
             dir.Normalize();
         }
 
-        // Apply loft (upward angle)
+        // Apply loft (upward angle) — uses the active loftAngle (club or putter override)
         Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
-        dir = Quaternion.AngleAxis(-loftAngle, right) * dir;
+        dir = Quaternion.AngleAxis(-activeLoft, right) * dir;
         dir.Normalize();
 
-        // Re-enable physics in case the ball was frozen after a penalty respawn
+        // ── Un-freeze ball ───────────────────────────────────────────────────
         if (_ballRb.isKinematic)
             _ballRb.isKinematic = false;
 
-        _ballRb.AddForce(dir * power * powerScale, ForceMode.Impulse);
-        _ballRb.AddTorque(right * power * 2f * powerScale, ForceMode.Impulse);
+        // ── Apply force + spin ───────────────────────────────────────────────
+        float finalForce = power * activeScale;
+        _ballRb.AddForce(dir * finalForce, ForceMode.Impulse);
 
-        // Enable green flight trail
+        // Backspin (7-iron) = torque opposite to forward = topspin axis is 'right'
+        // Topspin (putter)  = torque in forward direction to promote rolling
+        Vector3 spinAxis = (activeLoft <= 5f) ? right : -right;  // putter topspin vs backspin
+        _ballRb.AddTorque(spinAxis * finalForce * spinMult, ForceMode.Impulse);
+
+        // ── Trail ────────────────────────────────────────────────────────────
         if (_ballTrail != null) _ballTrail.emitting = true;
 
-        // Mark ball as in-flight (blocks next swing until ball stops)
         ballInFlight = true;
-
-        // Record this stroke with the game manager
         GolfGameManager.Instance?.RecordStroke();
 
-        readyToHit   = false;   // can't hit again until next B press
+        readyToHit   = false;
         aimDirection = Vector3.zero;
 
         PlaySound(ballHit, 1f);
-        Debug.Log($"[GolfSwing] Hit! Power={power:F1}  Dir={dir}");
+        Debug.Log($"[GolfSwing] Hit! Club={_clubs?.CurrentData.name ?? "default"}  " +
+                  $"Power={power:F1}  Loft={activeLoft}°  Force={finalForce:F2}N  Dir={dir}");
 
         StartCoroutine(WaitForBallToStop());
     }
 
+    /// <summary>
+    /// Sets Rigidbody drag, PhysicsMaterial, and GolfBallRoller rolling values
+    /// per the active club's data. Called once per shot, right before force is applied.
+    /// </summary>
+    void ApplyClubBallPhysics(ClubSystem.ClubData cd)
+    {
+        // ── Flight physics (active until first ground contact) ────────────────
+        if (_ballRb != null)
+        {
+            _ballRb.linearDamping  = cd.linearDamping;
+            _ballRb.angularDamping = cd.angularDamping;
+        }
+
+        if (_ballCol != null)
+        {
+            var mat = _ballCol.material;
+            if (mat != null)
+            {
+                mat.bounciness  = cd.bounciness;
+                // Flight friction — GolfBallRoller will override this on landing
+                mat.dynamicFriction = cd.groundFriction;
+                mat.staticFriction  = cd.groundFriction + 0.1f;
+            }
+        }
+
+        // ── Rolling physics (written to GolfBallRoller, applied on first bounce) ─
+        var roller = _ball != null ? _ball.GetComponent<GolfBallRoller>() : null;
+        if (roller != null)
+        {
+            roller.rollingLinearDamping  = cd.rollingLinearDamping;
+            roller.rollingAngularDamping = cd.rollingAngularDamping;
+            roller.rollingFriction       = cd.rollingFriction;
+        }
+    }
+
     IEnumerator WaitForBallToStop()
     {
-        // Give ball time to launch before checking
+        // Wait for launch, then kill the trail once the ball is near rest.
+        // BallStateManager owns all stop detection, B-press, and teleport logic.
         yield return new WaitForSeconds(1.5f);
 
         while (_ballRb != null && _ballRb.linearVelocity.magnitude > 0.3f)
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(0.25f);
 
-        // Stop trail and clear in-flight flag once ball is at rest
         if (_ballTrail != null) _ballTrail.emitting = false;
-        ballInFlight = false;
+        // NOTE: ballInFlight and SpawnBall are handled by BallStateManager.
+    }
 
-        // Move spawn point to where ball landed for next shot
-        if (_ball != null && ballSpawnPoint != null)
-            ballSpawnPoint.position = _ball.transform.position + Vector3.up * 0.05f;
+    /// <summary>
+    /// Moves the ballSpawnPoint to the given world position (landing spot).
+    /// Called by BallStateManager before RespawnBall().
+    /// </summary>
+    public void UpdateSpawnPoint(Vector3 worldPos)
+    {
+        if (ballSpawnPoint != null)
+            ballSpawnPoint.position = worldPos + Vector3.up * 0.05f;
+    }
 
-        yield return new WaitForSeconds(1f);
-        SpawnBall();
+    /// <summary>
+    /// Public entry point so BallStateManager / OutOfBoundsTracker can trigger the next ball spawn.
+    /// </summary>
+    public void RespawnBall() => SpawnBall();
+
+    /// <summary>
+    /// Locks the current ball in place with isKinematic so it cannot roll on slopes.
+    /// TryHitBall() will unfreeze it when the player swings.
+    /// </summary>
+    public void FreezeBall()
+    {
+        if (_ballRb == null) return;
+        _ballRb.linearVelocity  = Vector3.zero;
+        _ballRb.angularVelocity = Vector3.zero;
+        _ballRb.isKinematic     = true;
+        Debug.Log("[GolfSwing] Ball frozen at respawn position.");
     }
 
     /// <summary>
@@ -408,19 +487,29 @@ public class GolfSwingController : MonoBehaviour
 
         var sc = _ball.GetComponent<SphereCollider>();
         if (sc == null) sc = _ball.AddComponent<SphereCollider>();
-        sc.radius  = 0.5f;   // local-space radius (scales with transform.localScale)
+        sc.radius  = 0.5f;
         sc.enabled = true;
+        _ballCol   = sc;
 
-        // Bounce + friction material
+        // Bounce + friction material — Maximum combine ensures ball friction always
+        // wins over low-friction terrain so grass deceleration feels realistic
         var physMat = new PhysicsMaterial("GolfBall")
         {
             bounciness      = 0.45f,
-            dynamicFriction = 0.4f,
-            staticFriction  = 0.5f,
-            bounceCombine   = PhysicsMaterialCombine.Average,
-            frictionCombine = PhysicsMaterialCombine.Average
+            dynamicFriction = 0.65f,
+            staticFriction  = 0.80f,
+            bounceCombine   = PhysicsMaterialCombine.Minimum,   // softer bounce
+            frictionCombine = PhysicsMaterialCombine.Maximum    // always apply ball friction
         };
         sc.material = physMat;
+
+        // GolfBallRoller detects first ground contact and switches to heavier
+        // rolling physics — per-club values are written by ApplyClubBallPhysics()
+        var roller = _ball.AddComponent<GolfBallRoller>();
+        // Pre-set with 7-iron defaults; overridden per-shot if ClubSystem is present
+        roller.rollingLinearDamping  = 1.6f;
+        roller.rollingAngularDamping = 2.8f;
+        roller.rollingFriction       = 0.80f;
 
         // ── Green flight trail ────────────────────────────────────────────────
         _ballTrail                  = _ball.AddComponent<TrailRenderer>();

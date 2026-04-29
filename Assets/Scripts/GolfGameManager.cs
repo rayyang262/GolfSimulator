@@ -41,6 +41,16 @@ public class GolfGameManager : MonoBehaviour
         swing.PenaltyRespawn(waterPenaltyPosition);
     }
 
+    /// <summary>
+    /// Increments the penalty counter only — caller is responsible for respawn position.
+    /// Used by OutOfBoundsTracker which knows the last safe ball position.
+    /// </summary>
+    public void AddPenalty()
+    {
+        _penalties++;
+        Debug.Log($"[GolfGameManager] Penalty added. Total penalties: {_penalties}");
+    }
+
     public void HoleComplete()
     {
         if (_statsText != null)
