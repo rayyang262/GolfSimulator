@@ -80,6 +80,19 @@ public class GolfBallRoller : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Called by GolfSwingController immediately before each shot.
+    /// Resets flight-time and landed state so that a previously frozen
+    /// (kinematic) ball does not trigger SwitchToRollingPhysics() the
+    /// instant it becomes non-kinematic — which would apply heavy rolling
+    /// drag before the ball has left the ground, causing extremely short shots.
+    /// </summary>
+    public void ResetForLaunch()
+    {
+        _hasLanded  = false;
+        _flightTime = 0f;
+    }
+
     void SwitchToRollingPhysics()
     {
         _hasLanded = true;

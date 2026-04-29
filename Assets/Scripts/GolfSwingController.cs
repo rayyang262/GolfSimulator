@@ -293,6 +293,13 @@ public class GolfSwingController : MonoBehaviour
         dir.Normalize();
 
         // ── Un-freeze ball ───────────────────────────────────────────────────
+        // Reset the roller BEFORE making non-kinematic so that the
+        // kinematic→dynamic contact burst doesn't immediately fire
+        // SwitchToRollingPhysics() — which would apply heavy rolling drag
+        // before the ball has left the ground (the "short shot after OOB" bug).
+        var roller = _ball.GetComponent<GolfBallRoller>();
+        if (roller != null) roller.ResetForLaunch();
+
         if (_ballRb.isKinematic)
             _ballRb.isKinematic = false;
 
