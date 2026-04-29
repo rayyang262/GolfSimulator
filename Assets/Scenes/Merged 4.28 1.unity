@@ -1401,12 +1401,20 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5682352867819392583, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5682352867819392583, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
       propertyPath: m_IsTrigger
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6745352159171455125, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 95
+      value: 95.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 6745352159171455125, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 259
       objectReference: {fileID: 0}
     - target: {fileID: 7850363962652624120, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
       propertyPath: m_Name
@@ -1419,6 +1427,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 494691061729075502, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
       insertIndex: -1
       addedObject: {fileID: 505305072}
+    - targetCorrespondingSourceObject: {fileID: 494691061729075502, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 505305077}
   m_SourcePrefab: {fileID: 100100000, guid: aebd59e2d99fbac45a78b2acb57ab9bd, type: 3}
 --- !u!1 &355289530
 GameObject:
@@ -1700,7 +1711,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 633, y: 105, z: 216}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 2.1032, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -1721,7 +1732,10 @@ MonoBehaviour:
   putterMaxPower: 0.8
   putterLoftAngle: 3
   putterPowerScale: 0.12
+  putterCameraPitch: 62
   puttingVCam: {fileID: 0}
+  zoneLineColor: {r: 0.1, g: 1, b: 0.1, a: 0.9}
+  zoneLineWidth: 0.12
 --- !u!1 &497984688
 GameObject:
   m_ObjectHideFlags: 0
@@ -1877,6 +1891,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WaterHazard
   penaltyPosition: {x: 320, y: 105, z: 246}
+--- !u!65 &505305077
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 505305067}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 10, y: 2.220446e-16, z: 9.999999}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1001 &583298269
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2294,6 +2329,15 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 453084650579209855, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2139247688}
+    - targetCorrespondingSourceObject: {fileID: 453084650579209855, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2139247693}
+    - targetCorrespondingSourceObject: {fileID: 453084650579209855, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2139247692}
+    - targetCorrespondingSourceObject: {fileID: 453084650579209855, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2139247691}
   m_SourcePrefab: {fileID: 100100000, guid: 035bf1ba97d19214580cfe6f5a29fdc3, type: 3}
 --- !u!1 &637913425
 GameObject:
@@ -6768,6 +6812,7 @@ MonoBehaviour:
   aimLineLength: 10
   approachMessage: Press  B  to get into position to swing
   stanceMessage: "\u2190 \u2192 Aim   |   \u2191 \u2193 Loft   |   Swing your phone!"
+  blockBInput: 0
 --- !u!114 &2139247688
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6806,6 +6851,97 @@ MonoBehaviour:
   windDirection: {x: 1, y: 0, z: 0}
   windSpeedMph: 5
   panelOffset: {x: 0, y: 80}
+--- !u!114 &2139247691
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2139247676}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5e46c9aaa85c48738c26bbcc9b6b8b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OutOfBoundsTracker
+  sampleInterval: 0.5
+  bufferSize: 5
+  minHeightAboveTerrain: 0.3
+  belowTerrainThreshold: 1.5
+  playerRespawnOffset: 1.5
+  respawnDelay: 1.2
+--- !u!114 &2139247692
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2139247676}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95eb5e50b62ba4457a40c1d8529f1a7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BallStateManager
+  holeTarget: {fileID: 430095893}
+  followDistance: 7
+  followHeight: 3
+  followSpeed: 5
+  followCameraPitch: 12
+  stoppedSpeedThreshold: 0.35
+  stoppedDuration: 1
+  directionChangeTolerance: 25
+  stanceOffset: 1.5
+--- !u!114 &2139247693
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2139247676}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5bb09d6ad4682465cbd3f5d77c3dd998, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClubSystem
+  driver:
+    name: Driver
+    loftAngle: 10
+    powerScale: 0.28
+    spinMultiplier: 0.6
+    linearDamping: 0.1
+    angularDamping: 0.15
+    bounciness: 0.38
+    groundFriction: 0.25
+    rollingLinearDamping: 0.7
+    rollingAngularDamping: 1.2
+    rollingFriction: 0.5
+    uiColor: {r: 1, g: 0.82, b: 0.1, a: 1}
+  sevenIron:
+    name: 7-Iron
+    loftAngle: 33
+    powerScale: 0.18
+    spinMultiplier: 2.2
+    linearDamping: 0.18
+    angularDamping: 0.45
+    bounciness: 0.22
+    groundFriction: 0.55
+    rollingLinearDamping: 1.6
+    rollingAngularDamping: 2.8
+    rollingFriction: 0.8
+    uiColor: {r: 0.4, g: 0.8, b: 1, a: 1}
+  putter:
+    name: Putter
+    loftAngle: 3
+    powerScale: 0.12
+    spinMultiplier: 0.15
+    linearDamping: 0.3
+    angularDamping: 0.85
+    bounciness: 0.08
+    groundFriction: 0.8
+    rollingLinearDamping: 2.8
+    rollingAngularDamping: 4.5
+    rollingFriction: 0.92
+    uiColor: {r: 0.5, g: 1, b: 0.5, a: 1}
+  putterOverride: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
