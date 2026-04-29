@@ -245,12 +245,7 @@ public class OutOfBoundsTracker : MonoBehaviour
             rb.isKinematic     = true;
         }
 
-        // Snap to terrain surface at safe position
-        Terrain terrain = Terrain.activeTerrain;
-        Vector3 pos = targetPos;
-        if (terrain != null)
-            pos.y = terrain.SampleHeight(pos) + terrain.transform.position.y + 0.08f;
-
+        Vector3 pos = ClampToTerrainSurface(targetPos, 0.08f);
         ballGO.transform.position = pos;
 
         var trail = ballGO.GetComponent<TrailRenderer>();
@@ -259,22 +254,56 @@ public class OutOfBoundsTracker : MonoBehaviour
 
     void TeleportPlayerToSafePos(Vector3 safePos)
     {
-        // Stand to the right of the safe position (facing the fallback forward)
-        Vector3 forward     = transform.forward;
-        forward.y           = 0f;
+        // Stand 1.5 m to the right of the safe position
+        Vector3 forward = transform.forward;
+        forward.y = 0f;
         if (forward.sqrMagnitude < 0.001f) forward = Vector3.forward;
         forward.Normalize();
 
         Vector3 rightOfLine = Quaternion.Euler(0f, 90f, 0f) * forward;
         Vector3 tpPos       = safePos + rightOfLine * playerRespawnOffset;
 
-        Terrain terrain = Terrain.activeTerrain;
-        if (terrain != null)
-            tpPos.y = terrain.SampleHeight(tpPos) + terrain.transform.position.y + 0.05f;
+        // Clamp XZ inside terrain bounds then snap Y to ground.
+        // Without the clamp, Terrain.SampleHeight returns 0 for any position
+        // outside the terrain's bounds, placing the player at world Y≈0 (off the map).
+        tpPos = ClampToTerrainSurface(tpPos, 0.1f);
 
         if (_cc != null) _cc.enabled = false;
         transform.position = tpPos;
-        // Don't force a rotation — let the player re-aim naturally
+    }
+
+    // ── Terrain helper ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Clamps XZ to terrain bounds (3 m inset from each edge) then sets Y to the
+    /// terrain surface height + <paramref name="aboveGround"/>.
+    /// Falls back to a downward raycast if no terrain exists.
+    /// </summary>
+    static Vector3 ClampToTerrainSurface(Vector3 pos, float aboveGround)
+    {
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain != null)
+        {
+            const float inset = 3f;
+            Vector3 tp  = terrain.transform.position;
+            Vector3 sz  = terrain.terrainData.size;
+
+            // Keep XZ safely inside the terrain mesh
+            pos.x = Mathf.Clamp(pos.x, tp.x + inset, tp.x + sz.x - inset);
+            pos.z = Mathf.Clamp(pos.z, tp.z + inset, tp.z + sz.z - inset);
+
+            // Now that XZ is valid, SampleHeight will return the correct value
+            pos.y = terrain.SampleHeight(pos) + tp.y + aboveGround;
+            return pos;
+        }
+
+        // No terrain — use a downward raycast from well above the position
+        if (Physics.Raycast(new Vector3(pos.x, pos.y + 150f, pos.z),
+                            Vector3.down, out RaycastHit hit, 300f))
+        {
+            pos.y = hit.point.y + aboveGround;
+        }
+        return pos;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

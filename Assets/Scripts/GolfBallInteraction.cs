@@ -327,22 +327,25 @@ public class GolfBallInteraction : MonoBehaviour
         {
             if (Mathf.Abs(loftDelta) > 0.001f)
             {
-                // Sand wedge unlocks high-loft range (45°–62°) for chip/pitch shots.
+                // Sand wedge: full 0°–90° freedom (flat chip → straight-up lob).
                 // All other clubs stay in the standard 5°–45° window.
                 bool isSandWedge = _clubs != null &&
                                    _clubs.CurrentClub == ClubSystem.ClubType.SandWedge;
-                float minLoft = isSandWedge ? 45f :  5f;
-                float maxLoft = isSandWedge ? 62f : 45f;
+                float minLoft = isSandWedge ?  0f :  5f;
+                float maxLoft = isSandWedge ? 90f : 45f;
                 _swing.loftAngle = Mathf.Clamp(_swing.loftAngle + loftDelta, minLoft, maxLoft);
             }
 
             // Keep camera pitch in sync with loft, preserving the -22° left tilt.
-            // Full range 5°–62° maps to pitch 48° (steeply down) → -25° (looking up).
-            // At 45° this gives roughly the same feel as before; wedge shots naturally
-            // tilt the view upward to watch the high arc.
+            // Sand wedge 0°–90° → camera 32° (slightly down) to -55° (looking up).
+            // Other clubs  5°–45° → camera 48° (steeply down) to -25° (looking up).
             if (_camRoot != null)
             {
-                float camPitch = Mathf.Lerp(48f, -25f, (_swing.loftAngle - 5f) / 57f);
+                bool isSandWedge = _clubs != null &&
+                                   _clubs.CurrentClub == ClubSystem.ClubType.SandWedge;
+                float camPitch = isSandWedge
+                    ? Mathf.Lerp(32f, -55f, _swing.loftAngle / 90f)
+                    : Mathf.Lerp(48f, -25f, (_swing.loftAngle - 5f) / 40f);
                 _camRoot.localRotation = Quaternion.Euler(camPitch, -22f, 0f);
             }
         }

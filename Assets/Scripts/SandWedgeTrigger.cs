@@ -163,7 +163,7 @@ public class SandWedgeTrigger : MonoBehaviour
         var tgo = new GameObject("Text");
         tgo.transform.SetParent(panel.transform, false);
         _bannerText              = tgo.AddComponent<TextMeshProUGUI>();
-        _bannerText.text         = "SAND WEDGE  ·  ↑ ↓ to adjust loft  (45°–62°)";
+        _bannerText.text         = "SAND WEDGE  ·  ↑ ↓ to adjust loft  (0°–90°)";
         _bannerText.fontSize     = 21f;
         _bannerText.fontStyle    = FontStyles.Bold;
         _bannerText.alignment    = TextAlignmentOptions.Center;

@@ -459,12 +459,18 @@ public class GolfSwingController : MonoBehaviour
             ? ballSpawnPoint.position
             : transform.position + transform.forward * 1.5f;
 
-        // Snap spawn position to actual terrain surface so ball sits on the ground
+        // Clamp XZ to terrain bounds then snap Y to surface.
+        // Terrain.SampleHeight returns 0 for out-of-bounds positions, which would
+        // spawn the ball underground after a water-hazard drop at the terrain edge.
         Terrain terrain = Terrain.activeTerrain;
         if (terrain != null)
         {
-            float terrainY = terrain.SampleHeight(pos) + terrain.transform.position.y;
-            pos.y = terrainY + 0.08f;  // spawn a little above surface to avoid clipping through
+            const float inset = 3f;
+            Vector3 tp = terrain.transform.position;
+            Vector3 sz = terrain.terrainData.size;
+            pos.x = Mathf.Clamp(pos.x, tp.x + inset, tp.x + sz.x - inset);
+            pos.z = Mathf.Clamp(pos.z, tp.z + inset, tp.z + sz.z - inset);
+            pos.y = terrain.SampleHeight(pos) + tp.y + 0.08f;
         }
 
         // Spawn the ball — use the assigned prefab, or fall back to a plain sphere
