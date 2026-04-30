@@ -312,6 +312,17 @@ public class GolfSwingController : MonoBehaviour
         Vector3 spinAxis = (activeLoft <= 5f) ? right : -right;  // putter topspin vs backspin
         _ballRb.AddTorque(spinAxis * finalForce * spinMult, ForceMode.Impulse);
 
+        // ── Putter: skip flight phase so ball rolls from the first frame ─────
+        if (hasClubs && _clubs.CurrentClub == ClubSystem.ClubType.Putter)
+        {
+            var r2 = _ball.GetComponent<GolfBallRoller>();
+            if (r2 != null)
+            {
+                r2.skipRollingResistance = true;
+                r2.ForceRollingMode();
+            }
+        }
+
         // ── Trail ────────────────────────────────────────────────────────────
         if (_ballTrail != null) _ballTrail.emitting = true;
 

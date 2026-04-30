@@ -1202,7 +1202,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 052a271b8c3b041d2bdf773808354bef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GolfHole
-  holeRadius: 0.108
+  holeRadius: 0.25
   maxEntrySpeed: 4
 --- !u!4 &430095893
 Transform:
@@ -1494,6 +1494,55 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1cacd37db68b03b4db52e458d462de33, type: 3}
+--- !u!1 &595754470
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 595754472}
+  - component: {fileID: 595754471}
+  m_Layer: 0
+  m_Name: ClubDistanceTuner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &595754471
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 595754470}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b84f5059254278f45b5ce84e692a8fc8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClubDistanceTuner
+  driverPower: 0.24
+  fiveIronPercent: 67
+  sevenIronPercent: 48
+  sandWedgePercent: 30
+  putterPercent: 42.9
+--- !u!4 &595754472
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 595754470}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 662.66, y: 100.7, z: 215.83}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &612570172
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4198,7 +4247,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GolfGameManager
   waterPenaltyPosition: {x: 320, y: 105, z: 24}
-  csCanvasText: {fileID: 0}
+  csCanvasText: {fileID: 272490942}
+  csCanvasText2: {fileID: 1151002245}
 --- !u!114 &1295561949
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4208,11 +4258,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 1295561943}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f74ccccdbde2484cbeac412590c78aa, type: 3}
+  m_Script: {fileID: 11500000, guid: 10878920d18080a45be6a87807724aa4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GolfGameManager
-  waterPenaltyPosition: {x: 320, y: 105, z: 24}
-  csCanvasText: {fileID: 0}
+  m_EditorClassIdentifier: Assembly-CSharp::ClubRecommendationDisplay
+  canvasText: {fileID: 2129834154}
+  phoneText: {fileID: 1624274449}
+  holeTransform: {fileID: 0}
+  fiveIronThreshold: 80
+  sevenIronThreshold: 45
 --- !u!1 &1327432183
 GameObject:
   m_ObjectHideFlags: 0
@@ -5179,7 +5232,7 @@ GameObject:
   - component: {fileID: 1624274450}
   - component: {fileID: 1624274449}
   m_Layer: 5
-  m_Name: TimeText
+  m_Name: clubphonetext
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5986,8 +6039,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1888971071}
-  - component: {fileID: 1888971070}
-  - component: {fileID: 1888971072}
   m_Layer: 0
   m_Name: GolfGameManager
   m_TagString: Untagged
@@ -5995,20 +6046,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1888971070
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1888971069}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f74ccccdbde2484cbeac412590c78aa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GolfGameManager
-  waterPenaltyPosition: {x: 320, y: 105, z: 240}
-  csCanvasText: {fileID: 272490942}
 --- !u!4 &1888971071
 Transform:
   m_ObjectHideFlags: 0
@@ -6024,20 +6061,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1888971072
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1888971069}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f74ccccdbde2484cbeac412590c78aa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GolfGameManager
-  waterPenaltyPosition: {x: 320, y: 105, z: 24}
-  csCanvasText: {fileID: 1151002245}
 --- !u!1 &1890295391
 GameObject:
   m_ObjectHideFlags: 0
@@ -6071,8 +6094,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StatCardToggle
   background: {fileID: 1890295393}
-  defaultSprite: {fileID: 21300000, guid: ddd377e954187b2458388b56e0e984fd, type: 3}
-  activeSprite: {fileID: 21300000, guid: f43969dbecc5a9b428bc604f2f545026, type: 3}
+  defaultSprite: {fileID: 21300000, guid: 28451dac779000d458e0cc53e79832b4, type: 3}
+  activeSprite: {fileID: 21300000, guid: 7ea4090135cb98849886253a740777f2, type: 3}
   defaultColor: {r: 1, g: 1, b: 1, a: 1}
   activeColor: {r: 1, g: 1, b: 1, a: 1}
   activeIndicator: {fileID: 0}
@@ -6096,7 +6119,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: ddd377e954187b2458388b56e0e984fd, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 28451dac779000d458e0cc53e79832b4, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -7011,6 +7034,19 @@ MonoBehaviour:
     rollingAngularDamping: 1.2
     rollingFriction: 0.5
     uiColor: {r: 1, g: 0.82, b: 0.1, a: 1}
+  fiveIron:
+    name: 5-Iron
+    loftAngle: 25
+    powerScale: 0.06
+    spinMultiplier: 1.5
+    linearDamping: 0.14
+    angularDamping: 0.3
+    bounciness: 0.28
+    groundFriction: 0.4
+    rollingLinearDamping: 0.6
+    rollingAngularDamping: 2
+    rollingFriction: 0.65
+    uiColor: {r: 0.6, g: 1, b: 0.6, a: 1}
   sevenIron:
     name: 7-Iron
     loftAngle: 33
@@ -7066,3 +7102,4 @@ SceneRoots:
   - {fileID: 430095893}
   - {fileID: 840935830}
   - {fileID: 164683726}
+  - {fileID: 595754472}

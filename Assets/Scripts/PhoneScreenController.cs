@@ -19,6 +19,7 @@ public class PhoneScreenController : MonoBehaviour
     public RawImage phoneFeed;
     public TextMeshProUGUI timeText;
     public TextMeshProUGUI fgText;
+    public TextMeshProUGUI csText;
     public GameObject settingsOverlay;
     public Button screenTapArea;
 
@@ -43,6 +44,7 @@ public class PhoneScreenController : MonoBehaviour
         if (phoneFeed == null) phoneFeed = FindInChildren<RawImage>("PhoneFeed");
         if (timeText == null) timeText = FindInChildren<TextMeshProUGUI>("TimeText");
         if (fgText == null) fgText = FindInChildren<TextMeshProUGUI>("FGText");
+        if (csText == null) csText = FindInChildren<TextMeshProUGUI>("CSText");
         if (settingsOverlay == null)
         {
             var t = FindInChildren<Transform>("SettingsOverlay");
@@ -58,6 +60,11 @@ public class PhoneScreenController : MonoBehaviour
         var canvas = GetComponent<Canvas>();
         if (canvas != null && canvas.renderMode == RenderMode.WorldSpace && mainCamera != null)
             canvas.worldCamera = mainCamera;
+
+        // Disable GraphicRaycaster so EventSystem doesn't double-fire clicks
+        // that we already handle manually in Update().
+        var gr = GetComponent<GraphicRaycaster>();
+        if (gr != null) gr.enabled = false;
 
         // Set up live camera feed
         SetupCameraFeed();
@@ -76,6 +83,8 @@ public class PhoneScreenController : MonoBehaviour
         // Initial text
         if (fgText != null)
             fgText.text = "FG%: 0/0";
+        if (csText != null)
+            csText.text = "CS: 0";
 
         phoneAnimator = FindFirstObjectByType<PhoneAnimator>();
 
@@ -93,19 +102,66 @@ public class PhoneScreenController : MonoBehaviour
         if (timeText != null)
             timeText.text = System.DateTime.Now.ToString("H:mm tt");
 
-        // Detect clicks on the phone screen mesh
-        if (phoneAnimator != null && phoneAnimator.IsPhoneUp
-            && UnityEngine.InputSystem.Mouse.current != null
-            && UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame
-            && mainCamera != null && phoneScreenRenderer != null)
+        if (phoneAnimator == null || !phoneAnimator.IsPhoneUp) return;
+        if (UnityEngine.InputSystem.Mouse.current == null) return;
+        if (!UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
+        if (mainCamera == null) return;
+
+        Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+
+        // When display library is open, handle all clicks inside it manually
+        // (WorldSpace canvas EventSystem is unreliable for these buttons).
+        if (displayLibraryOverlay != null && displayLibraryOverlay.activeSelf)
         {
-            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-            Ray ray = mainCamera.ScreenPointToRay(mousePos);
-            if (phoneScreenRenderer.bounds.IntersectRay(ray)
-                && !IsPointerOverSelectable(mousePos))
+            // Use local-space projection for each button — more reliable than
+            // RectangleContainsScreenPoint on large WorldSpace canvas rects.
+            Button bestBtn = null;
+            float bestArea = float.MaxValue;
+            foreach (var btn in displayLibraryOverlay.GetComponentsInChildren<Button>(true))
             {
-                OnScreenTapped();
+                if (!btn.gameObject.activeInHierarchy || !btn.interactable) continue;
+                var r = btn.GetComponent<RectTransform>();
+                if (r == null) continue;
+                if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(r, mousePos, mainCamera, out Vector2 local)) continue;
+                if (!r.rect.Contains(local)) continue;
+                float area = r.rect.width * r.rect.height;
+                if (area < bestArea) { bestArea = area; bestBtn = btn; }
             }
+
+            if (bestBtn != null)
+            {
+                bestBtn.onClick.Invoke();
+                return;
+            }
+
+            // No button hit — close if click is outside the overlay panel
+            bool insidePanel = displayLibraryOverlay.transform is RectTransform panelRect &&
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(panelRect, mousePos, mainCamera, out Vector2 panelLocal) &&
+                panelRect.rect.Contains(panelLocal);
+
+            if (!insidePanel)
+                CloseDisplayLibrary();
+
+            return;
+        }
+
+        // Check displayLibraryButton (opens the overlay)
+        if (displayLibraryButton != null && displayLibraryButton.gameObject.activeInHierarchy)
+        {
+            var btnRect = displayLibraryButton.GetComponent<RectTransform>();
+            if (btnRect != null &&
+                RectTransformUtility.RectangleContainsScreenPoint(btnRect, mousePos, mainCamera))
+            {
+                OpenDisplayLibrary();
+                return;
+            }
+        }
+
+        if (phoneScreenRenderer == null) return;
+        Ray ray = mainCamera.ScreenPointToRay(mousePos);
+        if (phoneScreenRenderer.bounds.IntersectRay(ray) && !IsPointerOverSelectable(mousePos))
+        {
+            OnScreenTapped();
         }
     }
 
@@ -149,6 +205,17 @@ public class PhoneScreenController : MonoBehaviour
     bool IsPointerOverSelectable(Vector2 screenPos)
     {
         if (EventSystem.current == null) return false;
+
+        // Explicitly check the display library button rect so it isn't blocked
+        // by the phone-screen tap handler closing the SettingsOverlay first.
+        if (displayLibraryButton != null)
+        {
+            var btnRect = displayLibraryButton.GetComponent<RectTransform>();
+            if (btnRect != null &&
+                RectTransformUtility.RectangleContainsScreenPoint(btnRect, screenPos, mainCamera))
+                return true;
+        }
+
         var pointerData = new PointerEventData(EventSystem.current) { position = screenPos };
         var results = new List<RaycastResult>();
         EventSystem.current.RaycastAll(pointerData, results);
@@ -217,6 +284,13 @@ public class PhoneScreenController : MonoBehaviour
     {
         if (fgText != null)
             fgText.text = $"FG%: {made}/{total}";
+    }
+
+    /// <summary>Update the CS (current score) display.</summary>
+    public void UpdateCS(int strokes)
+    {
+        if (csText != null)
+            csText.text = $"CS: {strokes}";
     }
 
     T FindInChildren<T>(string objName) where T : Component
