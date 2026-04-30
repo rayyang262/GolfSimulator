@@ -17,21 +17,59 @@ public class GolfGameManager : MonoBehaviour
     private GameObject _gameOverCanvas;
     private TMP_Text _statsText;
 
+    [Header("CS Score Display")]
+    public TMP_Text csCanvasText;
+    public TMP_Text csCanvasText2;
+
+    private PhoneScreenController _phoneScreen;
+
     private void Awake()
     {
-        if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+        if (Instance != null && Instance != this) { Destroy(this); return; }
         Instance = this;
     }
 
     private void Start()
     {
         BuildGameOverUI();
+
+        _phoneScreen = FindFirstObjectByType<PhoneScreenController>();
+
+        // Auto-find canvas CS text by name if not assigned in Inspector.
+        // GetComponentsInChildren(true) includes inactive objects, unlike GameObject.Find.
+        if (csCanvasText == null)
+        {
+            var mainCam = GameObject.Find("MainCamera");
+            if (mainCam != null)
+            {
+                foreach (var t in mainCam.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (t.transform.parent != null &&
+                        t.transform.parent.name.StartsWith("Wdget_CS"))
+                    {
+                        csCanvasText = t;
+                        break;
+                    }
+                }
+            }
+        }
+
+        UpdateCSDisplays();
     }
 
     public void RecordStroke()
     {
         _strokes++;
+        UpdateCSDisplays();
         Debug.Log($"[GolfGameManager] Stroke recorded. Total strokes: {_strokes}");
+    }
+
+    private void UpdateCSDisplays()
+    {
+        string label = $"CS: {_strokes}";
+        if (csCanvasText != null)  csCanvasText.text  = label;
+        if (csCanvasText2 != null) csCanvasText2.text = label;
+        _phoneScreen?.UpdateCS(_strokes);
     }
 
     public void AddWaterPenalty(GolfSwingController swing)

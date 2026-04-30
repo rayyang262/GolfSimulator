@@ -69,6 +69,7 @@ public class GolfBallInteraction : MonoBehaviour
     private Vector3   _aimDirection;
     private Transform _camRoot;              // PlayerCameraRoot — drives camera pitch
     private Quaternion _preSstanceCamRot;   // saved so we restore it when exiting stance
+    private float     _putterCamPitch = 62f; // tracks free vertical look while putting
 
     /// <summary>Set true by BallStateManager during BallFollow/WaitingForContinue
     /// to prevent B key from opening stance while the ball is in flight.</summary>
@@ -249,8 +250,10 @@ public class GolfBallInteraction : MonoBehaviour
         if (_camRoot != null)
         {
             _preSstanceCamRot = _camRoot.localRotation;
-            // Look down and slightly left so the ball at lower-left is visible
-            _camRoot.localRotation = Quaternion.Euler(48f, -22f, 0f);
+            bool isPutter = _clubs != null && _clubs.CurrentClub == ClubSystem.ClubType.Putter;
+            float enterPitch = isPutter ? 62f : 48f;
+            if (isPutter) _putterCamPitch = enterPitch;
+            _camRoot.localRotation = Quaternion.Euler(enterPitch, -22f, 0f);
         }
 
         // ── Tell GolfSwingController we're ready ──────────────────────────
@@ -325,26 +328,30 @@ public class GolfBallInteraction : MonoBehaviour
         // ── Vertical: update loft and tilt camera root to match ───────────────
         if (_swing != null)
         {
+            bool isSandWedge = _clubs != null && _clubs.CurrentClub == ClubSystem.ClubType.SandWedge;
+            bool isPutter    = _clubs != null && _clubs.CurrentClub == ClubSystem.ClubType.Putter;
+
             if (Mathf.Abs(loftDelta) > 0.001f)
             {
-                // Sand wedge: full 0°–90° freedom (flat chip → straight-up lob).
-                // All other clubs stay in the standard 5°–45° window.
-                bool isSandWedge = _clubs != null &&
-                                   _clubs.CurrentClub == ClubSystem.ClubType.SandWedge;
-                float minLoft = isSandWedge ?  0f :  5f;
-                float maxLoft = isSandWedge ? 90f : 45f;
-                _swing.loftAngle = Mathf.Clamp(_swing.loftAngle + loftDelta, minLoft, maxLoft);
+                if (isPutter)
+                {
+                    // Camera orbits freely; loft stays 0 (ball must roll, not arc)
+                    _putterCamPitch = Mathf.Clamp(_putterCamPitch - loftDelta * 1.5f, 5f, 85f);
+                }
+                else
+                {
+                    float minLoft = isSandWedge ? 0f : 5f;
+                    float maxLoft = isSandWedge ? 90f : 45f;
+                    _swing.loftAngle = Mathf.Clamp(_swing.loftAngle + loftDelta, minLoft, maxLoft);
+                }
             }
 
-            // Keep camera pitch in sync with loft, preserving the -22° left tilt.
-            // Sand wedge 0°–90° → camera 32° (slightly down) to -55° (looking up).
-            // Other clubs  5°–45° → camera 48° (steeply down) to -25° (looking up).
             if (_camRoot != null)
             {
-                bool isSandWedge = _clubs != null &&
-                                   _clubs.CurrentClub == ClubSystem.ClubType.SandWedge;
                 float camPitch = isSandWedge
                     ? Mathf.Lerp(32f, -55f, _swing.loftAngle / 90f)
+                    : isPutter
+                    ? _putterCamPitch
                     : Mathf.Lerp(48f, -25f, (_swing.loftAngle - 5f) / 40f);
                 _camRoot.localRotation = Quaternion.Euler(camPitch, -22f, 0f);
             }
@@ -358,30 +365,46 @@ public class GolfBallInteraction : MonoBehaviour
         if (_aimLine == null || _ballTransform == null || _swing == null) return;
         SetAimLineVisible(true);
 
-        // ── Launch parameters at 75 % power (representative preview) ─────────
+        Vector3 origin  = _ballTransform.position + Vector3.up * 0.05f;
+        Vector3 flatDir = new Vector3(_aimDirection.x, 0f, _aimDirection.z).normalized;
+        Terrain terrain = Terrain.activeTerrain;
+
+        bool isPutter = _clubs != null && _clubs.CurrentClub == ClubSystem.ClubType.Putter;
+
+        if (isPutter)
+        {
+            // Flat ground-following line showing where the ball will roll
+            const int   PutterPts  = 24;
+            const float PutterDist = 10f;
+            _aimLine.positionCount = PutterPts;
+            for (int i = 0; i < PutterPts; i++)
+            {
+                float   d  = (float)i / (PutterPts - 1) * PutterDist;
+                Vector3 pt = origin + flatDir * d;
+                if (terrain != null)
+                    pt.y = terrain.SampleHeight(pt) + terrain.transform.position.y + 0.04f;
+                _aimLine.SetPosition(i, pt);
+            }
+            return;
+        }
+
+        // ── Normal clubs: parabolic arc preview at 75 % power ─────────────────
         float loftDeg = _swing.loftAngle;
         float loftRad = loftDeg * Mathf.Deg2Rad;
 
-        // force → speed:  F = m·a → v = F / m  (impulse over 1 s approximation)
         const float BallMass = 0.046f;
         float previewForce   = _swing.maxPower * 0.75f * _swing.powerScale;
         float speed          = previewForce / BallMass;
 
-        float vH = speed * Mathf.Cos(loftRad);   // horizontal component
-        float vV = speed * Mathf.Sin(loftRad);   // vertical component
-        float g  = Mathf.Abs(Physics.gravity.y);  // 9.81
+        float vH = speed * Mathf.Cos(loftRad);
+        float vV = speed * Mathf.Sin(loftRad);
+        float g  = Mathf.Abs(Physics.gravity.y);
 
-        // Time of flight (y = 0 again).  Cap at 8 s so putter doesn't draw forever.
         float tFlight = (g > 0f && vV > 0f) ? (2f * vV / g) : 0.3f;
         tFlight = Mathf.Clamp(tFlight, 0.2f, 8f);
 
-        // ── Draw parabola ─────────────────────────────────────────────────────
         const int MaxPts = 48;
-        Vector3   origin  = _ballTransform.position + Vector3.up * 0.05f;
-        Vector3   flatDir = new Vector3(_aimDirection.x, 0f, _aimDirection.z).normalized;
-
-        Terrain terrain = Terrain.activeTerrain;
-
+        _aimLine.positionCount = MaxPts;
         int pts = MaxPts;
         for (int i = 0; i < MaxPts; i++)
         {
@@ -391,7 +414,6 @@ public class GolfBallInteraction : MonoBehaviour
 
             Vector3 pt = origin + flatDir * hDist + Vector3.up * vDist;
 
-            // Clamp to terrain so arc doesn't tunnel underground
             if (terrain != null)
             {
                 float ty = terrain.SampleHeight(pt) + terrain.transform.position.y + 0.04f;
@@ -407,7 +429,6 @@ public class GolfBallInteraction : MonoBehaviour
             _aimLine.SetPosition(i, pt);
         }
 
-        // Trim unused segments so the LineRenderer doesn't draw stale points
         _aimLine.positionCount = pts;
     }
 

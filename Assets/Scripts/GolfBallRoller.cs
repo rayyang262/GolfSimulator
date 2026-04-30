@@ -19,12 +19,15 @@ public class GolfBallRoller : MonoBehaviour
     [HideInInspector] public float rollingLinearDamping  = 1.4f;
     [HideInInspector] public float rollingAngularDamping = 2.8f;
     [HideInInspector] public float rollingFriction       = 0.75f;
+    // Putter skips the strong resistance formula — Unity linear damping handles it
+    [HideInInspector] public bool  skipRollingResistance = false;
 
     // ── Private ───────────────────────────────────────────────────────────────
     private Rigidbody     _rb;
     private SphereCollider _sc;
     private bool          _hasLanded  = false;
     private float         _flightTime = 0f;
+    private float         _crawlTimer = 0f;  // time spent rolling below crawl speed
 
     // How many degrees from vertical a collision normal can be and still count as ground
     private const float GroundNormalTolerance = 55f;
@@ -44,20 +47,29 @@ public class GolfBallRoller : MonoBehaviour
         }
 
         // ── Rolling resistance ─────────────────────────────────────────────────
-        // Unity's PhysicsMaterial friction acts on surface contact area, but rolling
-        // momentum bleeds off too slowly for a golf game feel. Apply an explicit
-        // velocity-proportional deceleration force while the ball is rolling slowly.
         float speed = _rb.linearVelocity.magnitude;
-        if (speed > 0.02f && speed < 5f)
+        if (!skipRollingResistance && speed > 0.02f && speed < 5f)
         {
-            // Gentler resistance so the ball can still glide and roll naturally
-            // on slopes.  Old quadratic 0.35 was so strong it overcame gravity
-            // on any hill steeper than ~12°, pinning the ball in place.
-            // These coefficients still stop the ball decisively on flat grass
-            // but let slope gravity win and carry the ball to a natural lie.
-            float resistanceMag = speed * speed * 0.08f + speed * 0.05f;
+            // Stronger coefficients ensure even gentle slopes can't sustain terminal
+            // rolling indefinitely. At 0.5 m/s: ~0.35 m/s² deceleration (vs old ~0.05).
+            float resistanceMag = speed * speed * 0.20f + speed * 0.60f;
             _rb.AddForce(-_rb.linearVelocity.normalized * resistanceMag,
                          ForceMode.Acceleration);
+        }
+
+        // ── Crawl-stop backstop ────────────────────────────────────────────────
+        // If the ball has been rolling slowly for 4 s (e.g. trapped on a slope),
+        // force it to sleep so the game can declare it stopped and continue.
+        if (speed < 0.8f)
+            _crawlTimer += Time.fixedDeltaTime;
+        else
+            _crawlTimer = 0f;
+
+        if (_crawlTimer >= 4.0f)
+        {
+            _rb.linearVelocity  = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+            _rb.Sleep();
         }
     }
 
@@ -89,8 +101,21 @@ public class GolfBallRoller : MonoBehaviour
     /// </summary>
     public void ResetForLaunch()
     {
-        _hasLanded  = false;
-        _flightTime = 0f;
+        _hasLanded            = false;
+        _flightTime           = 0f;
+        _crawlTimer           = 0f;
+        skipRollingResistance = false;
+    }
+
+    /// <summary>
+    /// Called for putter shots: bypass the 0.25s flight guard and apply rolling
+    /// physics immediately so the ball rolls from the first frame.
+    /// </summary>
+    public void ForceRollingMode()
+    {
+        if (_hasLanded) return;
+        _flightTime = 1f;   // skip the flight-time guard in OnCollisionEnter
+        SwitchToRollingPhysics();
     }
 
     void SwitchToRollingPhysics()
@@ -109,7 +134,12 @@ public class GolfBallRoller : MonoBehaviour
             var mat                 = _sc.material;
             mat.dynamicFriction     = rollingFriction;
             mat.staticFriction      = rollingFriction + 0.15f;
-            mat.frictionCombine     = PhysicsMaterialCombine.Maximum;
+            // Putter (low rollingFriction) needs Minimum combine so the ball's
+            // smooth-green value (0.18) isn't overridden by terrain friction (~0.6).
+            // All other clubs use Maximum so high-friction terrain stops them correctly.
+            mat.frictionCombine = rollingFriction < 0.3f
+                ? PhysicsMaterialCombine.Minimum
+                : PhysicsMaterialCombine.Maximum;
             mat.bounciness          = Mathf.Min(mat.bounciness * 0.4f, 0.12f); // much less bounce after landing
             mat.bounceCombine       = PhysicsMaterialCombine.Minimum;
         }

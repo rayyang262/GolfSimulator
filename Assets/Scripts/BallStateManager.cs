@@ -70,6 +70,10 @@ public class BallStateManager : MonoBehaviour
     private float   _stoppedTimer;
     private Vector3 _prevVelocityDir = Vector3.forward;
 
+    // Putting-green bounds (used to decide putter on reposition)
+    private BoxCollider _greenBox;
+    private Transform   _greenTransform;
+
     private Canvas   _continueCanvas;
     private TMP_Text _continueText;
 
@@ -95,6 +99,13 @@ public class BallStateManager : MonoBehaviour
     void Start()
     {
         BuildContinueUI();
+
+        var green = FindFirstObjectByType<PuttingGreenTrigger>();
+        if (green != null)
+        {
+            _greenBox       = green.GetComponent<BoxCollider>();
+            _greenTransform = green.transform;
+        }
     }
 
     void Update()
@@ -267,9 +278,12 @@ public class BallStateManager : MonoBehaviour
         // Hard-stop the ball so it doesn't drift on a slope
         if (_ballRb != null)
         {
-            _ballRb.linearVelocity  = Vector3.zero;
-            _ballRb.angularVelocity = Vector3.zero;
-            _ballRb.isKinematic     = true;   // frozen until next shot
+            if (!_ballRb.isKinematic)
+            {
+                _ballRb.linearVelocity  = Vector3.zero;
+                _ballRb.angularVelocity = Vector3.zero;
+            }
+            _ballRb.isKinematic = true;   // frozen until next shot
         }
 
         // Clear the in-flight flag so TouchOSC cooldown can complete
@@ -318,8 +332,37 @@ public class BallStateManager : MonoBehaviour
         if (_cc  != null) _cc.enabled  = true;
         if (_fpc != null) _fpc.enabled = true;
 
-        // ── 6. Notify club system — Driver is done, next shot uses 7-Iron ────
-        _clubs?.OnShotCompleted();
+        // ── 6. Select club for next shot ─────────────────────────────────────
+        if (_clubs != null)
+        {
+            _clubs.OnShotCompleted();   // clears tee-shot flag + sandWedgeOverride
+
+            if (_ballTf != null && IsBallOnGreen(_ballTf))
+            {
+                _clubs.putterOverride = true;
+                _clubs.SelectClub();
+                Debug.Log("[BallStateManager] Ball on green → Putter");
+            }
+            else if (_ballTf != null && holeTarget != null)
+            {
+                _clubs.putterOverride = false;
+                Vector3 b = _ballTf.position;
+                Vector3 h = holeTarget.position;
+                float dist = Vector2.Distance(new Vector2(b.x, b.z), new Vector2(h.x, h.z));
+
+                ClubSystem.ClubType next;
+                if      (dist > 100f) next = ClubSystem.ClubType.FiveIron;
+                else if (dist > 45f)  next = ClubSystem.ClubType.SevenIron;
+                else                  next = ClubSystem.ClubType.SandWedge;
+
+                Debug.Log($"[BallStateManager] dist to hole={dist:F1}m → {next}");
+                _clubs.SetNextClub(next);
+            }
+            else
+            {
+                _clubs.putterOverride = false;
+            }
+        }
 
         // ── 7. Update spawn point and respawn ball at landing position ─────────
         if (_ballTf != null)
@@ -413,6 +456,18 @@ public class BallStateManager : MonoBehaviour
 
         root.SetActive(false);
         _continueCanvas = canvas;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    bool IsBallOnGreen(Transform ballTf)
+    {
+        if (ballTf == null || _greenBox == null || _greenTransform == null) return false;
+        Vector3 local = _greenTransform.InverseTransformPoint(ballTf.position);
+        Vector3 half  = _greenBox.size * 0.5f;
+        Vector3 ctr   = _greenBox.center;
+        return Mathf.Abs(local.x - ctr.x) <= half.x &&
+               Mathf.Abs(local.z - ctr.z) <= half.z;
     }
 
     // ── Gizmos ────────────────────────────────────────────────────────────────

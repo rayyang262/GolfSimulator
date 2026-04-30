@@ -14,16 +14,31 @@ public class WaterHazard : MonoBehaviour
 
     private void Awake()
     {
-        // Mark every collider on this GameObject as a trigger so ball physics
-        // pass through the water surface rather than bouncing off it.
-        //
-        // IMPORTANT: do NOT force MeshCollider.convex = true here.
-        // Convex mode replaces the exact water mesh with an oversized convex hull,
-        // causing the hazard to fire before the ball visually touches the water.
-        // A MeshCollider on a static (non-rigidbody) GameObject works as a
-        // non-convex trigger — Unity only requires convex for dynamic-body triggers.
+        // Unity does not support triggers on concave MeshColliders.
+        // For each non-convex MeshCollider, add a BoxCollider trigger that matches
+        // the renderer bounds instead. Convex MeshColliders and other collider
+        // types are converted to triggers directly.
         foreach (Collider col in GetComponents<Collider>())
-            col.isTrigger = true;
+        {
+            if (col is MeshCollider mc && !mc.convex)
+            {
+                // Can't make it a trigger — add a BoxCollider sized to the mesh bounds
+                Renderer rend = GetComponent<Renderer>();
+                Bounds bounds = rend != null ? rend.localBounds : new Bounds(Vector3.zero, Vector3.one);
+
+                BoxCollider box = gameObject.AddComponent<BoxCollider>();
+                box.center    = bounds.center;
+                box.size      = bounds.size;
+                box.isTrigger = true;
+
+                // Disable the mesh collider so only the box trigger is active
+                mc.enabled = false;
+            }
+            else
+            {
+                col.isTrigger = true;
+            }
+        }
     }
 
     private void OnTriggerEnter(Collider other)
